@@ -1,0 +1,12 @@
+parameters:
+    level: 8
+    paths:
+        - includes
+    bootstrapFiles:
+        - vendor/php-stubs/wordpress-stubs/wordpress-stubs.php
+    ignoreErrors:
+        # WP_List_Table is loaded dynamically from ABSPATH; PHPStan can't follow the require_once.
+        - '#extends unknown class WP_List_Table#'
+
+includes:
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon

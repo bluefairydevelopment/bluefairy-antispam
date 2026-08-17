@@ -1,0 +1,34 @@
+{
+    "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+    "meta": {
+        "title": "BlueFairy Anti-Spam Demo",
+        "author": "Blue Fairy Development",
+        "description": "Demonstrates the BlueFairy Anti-Spam plugin with pre-seeded block log data."
+    },
+    "landingPage": "/wp-admin/index.php",
+    "preferredVersions": {
+        "php": "8.3",
+        "wp": "latest"
+    },
+    "features": {
+        "networking": false
+    },
+    "login": true,
+    "steps": [
+        {
+            "step": "installPlugin",
+            "pluginData": {
+                "resource": "git:directory",
+                "url": "https://github.com/bluefairydevelopment/bluefairy-antispam",
+                "ref": "main",
+                "refType": "branch",
+                "path": "/"
+            },
+            "options": { "activate": true }
+        },
+        {
+            "step": "runPHP",
+            "code": "<?php\nrequire '/wordpress/wp-load.php';\nglobal $wpdb;\n$table = $wpdb->prefix . 'bfas_log';\n$traps = ['honeypot', 'timetrap', 'sfs'];\n$forms = ['wp_comment', 'wp_register', 'wc_review', 'wc_register', 'wc_checkout'];\n$ips   = ['192.168.1.100', '10.0.0.45', '203.0.113.55', '198.51.100.12', '172.16.0.9'];\nfor ($i = 0; $i < 20; $i++) {\n    $days = rand(1, 60);\n    $wpdb->insert($table, [\n        'blocked_at'   => date('Y-m-d H:i:s', strtotime(\"-{$days} days\")),\n        'trap'         => $traps[array_rand($traps)],\n        'form'         => $forms[array_rand($forms)],\n        'ip'           => $ips[array_rand($ips)],\n        'email_hash'   => hash('sha256', 'demo' . $i . '@example.com'),\n        'reported_sfs' => rand(0, 1),\n    ]);\n}\necho 'Seeded 20 demo log entries.';\n"
+        }
+    ]
+}

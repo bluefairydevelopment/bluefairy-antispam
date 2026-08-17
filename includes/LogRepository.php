@@ -1,0 +1,120 @@
+<?php
+declare(strict_types=1);
+
+namespace BlueFairy\AntiSpam;
+
+/**
+ * Data-access layer for the bfas_log table — used by LogTable (WP_List_Table).
+ */
+class LogRepository
+{
+    /**
+     * Count log rows, optionally filtered by trap type and/or IP search.
+     */
+    public function count(string $trap_filter = '', string $search_ip = ''): int
+    {
+        global $wpdb;
+
+        $where  = [];
+        $params = [];
+
+        if ($trap_filter !== '') {
+            $where[]  = '`trap` = %s';
+            $params[] = $trap_filter;
+        }
+
+        if ($search_ip !== '') {
+            $where[]  = '`ip` LIKE %s';
+            $params[] = '%' . $wpdb->esc_like($search_ip) . '%';
+        }
+
+        $sql = "SELECT COUNT(*) FROM `{$wpdb->prefix}bfas_log`";
+        if (! empty($where)) {
+            $sql .= ' WHERE ' . implode(' AND ', $where);
+        }
+
+        if (! empty($params)) {
+            // @phpstan-ignore-next-line
+            $sql = $wpdb->prepare($sql, ...$params); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+        }
+
+        return (int) $wpdb->get_var($sql); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.NotPrepared
+    }
+
+    /**
+     * Fetch a page of log rows.
+     *
+     * @param  int    $per_page
+     * @param  int    $offset
+     * @param  string $orderby     Column name — validated against allowlist.
+     * @param  string $order       ASC|DESC
+     * @param  string $trap_filter Optional trap type filter.
+     * @param  string $search_ip   Optional IP search string.
+     * @return array<int, array<string, mixed>>
+     */
+    public function get_rows(
+        int $per_page,
+        int $offset,
+        string $orderby = 'blocked_at',
+        string $order = 'DESC',
+        string $trap_filter = '',
+        string $search_ip = ''
+    ): array {
+        global $wpdb;
+
+        $allowed_orderby = ['blocked_at', 'trap', 'id'];
+        $orderby         = in_array($orderby, $allowed_orderby, true) ? $orderby : 'blocked_at';
+        $order           = strtoupper($order) === 'ASC' ? 'ASC' : 'DESC';
+
+        $where  = [];
+        $params = [];
+
+        if ($trap_filter !== '') {
+            $where[]  = '`trap` = %s';
+            $params[] = $trap_filter;
+        }
+
+        if ($search_ip !== '') {
+            $where[]  = '`ip` LIKE %s';
+            $params[] = '%' . $wpdb->esc_like($search_ip) . '%';
+        }
+
+        $sql = "SELECT `id`, `blocked_at`, `trap`, `form`, `ip`, `reported_sfs` FROM `{$wpdb->prefix}bfas_log`";
+        if (! empty($where)) {
+            $sql .= ' WHERE ' . implode(' AND ', $where);
+        }
+        $sql .= " ORDER BY `{$orderby}` {$order}";
+
+        $params[] = $per_page;
+        $params[] = $offset;
+        $sql     .= ' LIMIT %d OFFSET %d';
+
+        // @phpstan-ignore-next-line
+        $prepared = $wpdb->prepare($sql, ...$params); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+        $rows = $wpdb->get_results($prepared, ARRAY_A); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.NotPrepared
+
+        if (! is_array($rows)) {
+            return [];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Return an array of all distinct trap type values for the filter dropdown.
+     *
+     * @return string[]
+     */
+    public function get_trap_types(): array
+    {
+        global $wpdb;
+
+        $rows = $wpdb->get_col("SELECT DISTINCT `trap` FROM `{$wpdb->prefix}bfas_log` ORDER BY `trap`"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+        if (! is_array($rows)) {
+            return [];
+        }
+
+        return array_map('strval', $rows);
+    }
+}

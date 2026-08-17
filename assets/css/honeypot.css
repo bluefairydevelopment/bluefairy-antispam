@@ -1,0 +1,14 @@
+/*
+ * BlueFairy Anti-Spam — honeypot field styles.
+ * Hides the honeypot wrapper off-screen; takes no layout space.
+ * aria-hidden="true" on the wrapper and input covers assistive technologies.
+ */
+.bfas-hp-wrap {
+    position: absolute;
+    left: -9999px;
+    top: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    visibility: hidden;
+}
