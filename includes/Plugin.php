@@ -10,6 +10,8 @@ use BlueFairy\AntiSpam\Abilities\AbilityRegistrar;
 use BlueFairy\AntiSpam\Integration\WooCommerceIntegration;
 use BlueFairy\AntiSpam\Integration\WordPressIntegration;
 use BlueFairy\AntiSpam\Sfs\SfsReporter;
+use BlueFairy\AntiSpam\Traps\Honeypot;
+use BlueFairy\AntiSpam\Traps\TimeTrap;
 
 /**
  * Central plugin bootstrap — wires every component together.
@@ -65,6 +67,44 @@ final class Plugin
 
         // WP 6.9+ Abilities.
         ( new AbilityRegistrar($this->settings, $this->logger) )->register();
+
+        // Third-party integration hooks (e.g. BlueFairy Forms).
+        $this->register_integration_hooks();
+    }
+
+    /**
+     * Wire public action/filter hooks for third-party plugin integration.
+     *
+     * Action: bluefairy_antispam_render_fields( string $form_type )
+     *   Renders honeypot + timetrap fields for the given form type.
+     *
+     * Filter: bluefairy_antispam_check( bool $is_spam, array $post_data, string $form_type, string $ip, string $email )
+     *   Runs honeypot + timetrap checks. Returns true when spam detected.
+     */
+    private function register_integration_hooks(): void
+    {
+        $honeypot = new Honeypot($this->settings);
+        $timetrap = new TimeTrap($this->settings);
+
+        add_action('bluefairy_antispam_render_fields', function (string $form_type) use ($honeypot, $timetrap): void {
+            $honeypot->render_field($form_type);
+            $timetrap->render_fields($form_type);
+        });
+
+        add_filter('bluefairy_antispam_check', function (bool $is_spam, array $post_data, string $form_type, string $ip, string $email) use ($honeypot, $timetrap): bool {
+            if ($is_spam) {
+                return true;
+            }
+            if ($honeypot->is_spam($post_data, $form_type)) {
+                $this->logger->log('honeypot', $form_type, $ip, $email);
+                return true;
+            }
+            if ($timetrap->is_spam($post_data, $form_type)) {
+                $this->logger->log('timetrap', $form_type, $ip, $email);
+                return true;
+            }
+            return false;
+        }, 10, 5);
     }
 
     /**
