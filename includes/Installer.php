@@ -14,7 +14,9 @@ class Installer
     public function activate(): void
     {
         $this->install_table();
+        $this->maybe_seed_default_settings();
         $this->maybe_generate_hmac_secret();
+        $this->maybe_seed_sfs_api_key_option();
         $this->schedule_cron();
     }
 
@@ -66,6 +68,16 @@ class Installer
     }
 
     /**
+     * Persist default settings on fresh install so get_option() returns a full array.
+     */
+    private function maybe_seed_default_settings(): void
+    {
+        if (! get_option('bfas_settings')) {
+            add_option('bfas_settings', \BlueFairy\AntiSpam\Settings::defaults());
+        }
+    }
+
+    /**
      * Generate the HMAC secret on first activation (non-autoloaded).
      */
     private function maybe_generate_hmac_secret(): void
@@ -76,6 +88,16 @@ class Installer
 
         $secret = bin2hex(random_bytes(32));
         add_option('bfas_hmac_secret', $secret, '', 'no'); // non-autoloaded
+    }
+
+    /**
+     * Create the SFS API key option as non-autoloaded before register_setting() can create it autoloaded.
+     */
+    private function maybe_seed_sfs_api_key_option(): void
+    {
+        if (get_option('bfas_sfs_api_key') === false) {
+            add_option('bfas_sfs_api_key', '', '', 'no');
+        }
     }
 
     /**

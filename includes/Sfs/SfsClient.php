@@ -71,17 +71,15 @@ class SfsClient
             return false;
         }
 
-        $threshold   = (int) $this->settings->get('sfs_check_threshold', 1);
-        $ip_conf     = (float) ($body['ip']['confidence'] ?? 0);
-        $email_conf  = (float) ($body['email']['confidence'] ?? 0);
-        $is_spammer  = $ip_conf >= $threshold || $email_conf >= $threshold;
+        $threshold  = (int) $this->settings->get('sfs_check_threshold', 1);
+        $ip_conf    = (float) ($body['ip']['confidence'] ?? 0);
+        $email_conf = (float) ($body['email']['confidence'] ?? 0);
+        $is_spammer = $ip_conf >= $threshold || $email_conf >= $threshold;
 
         set_transient($transient_key, $is_spammer ? 1 : 0, $is_spammer ? 604800 : 3600);
 
-        if (! $is_spammer) {
-            // Reset circuit breaker on success.
-            delete_transient('bfas_sfs_failures');
-        }
+        // Reset circuit breaker on any successful, parseable API response.
+        delete_transient('bfas_sfs_failures');
 
         return $is_spammer;
     }

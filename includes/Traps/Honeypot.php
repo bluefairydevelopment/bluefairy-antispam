@@ -41,7 +41,7 @@ class Honeypot
      */
     public function field_name(string $form_type): string
     {
-        $index = abs(crc32($form_type)) % 8;
+        $index = (crc32($form_type) & 0x7FFFFFFF) % 8;
 
         return self::FIELD_POOL[$index];
     }

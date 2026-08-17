@@ -62,6 +62,7 @@ class SettingsPage
             [
                 'sanitize_callback' => 'sanitize_text_field',
                 'default'           => '',
+                'autoload'          => 'no',
             ]
         );
 

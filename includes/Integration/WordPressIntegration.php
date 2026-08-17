@@ -39,8 +39,6 @@ class WordPressIntegration
      */
     public function register(): void
     {
-        $this->sfs_reporter->register();
-
         // Comment form.
         add_action('comment_form', [$this, 'render_comment_fields']);
         add_filter('pre_comment_approved', [$this, 'validate_comment'], 10, 2);
@@ -208,10 +206,7 @@ class WordPressIntegration
      */
     private function record_block(string $trap, string $form, string $ip, string $email): void
     {
-        $this->logger->log($trap, $form, $ip, $email);
-
-        global $wpdb;
-        $log_id = (int) $wpdb->insert_id;
+        $log_id = $this->logger->log($trap, $form, $ip, $email);
 
         if ($trap === 'sfs') {
             $this->sfs_reporter->maybe_schedule_report($ip, $email, $log_id);

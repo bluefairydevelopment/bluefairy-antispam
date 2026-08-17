@@ -9,6 +9,7 @@ use BlueFairy\AntiSpam\Admin\SettingsPage;
 use BlueFairy\AntiSpam\Abilities\AbilityRegistrar;
 use BlueFairy\AntiSpam\Integration\WooCommerceIntegration;
 use BlueFairy\AntiSpam\Integration\WordPressIntegration;
+use BlueFairy\AntiSpam\Sfs\SfsReporter;
 
 /**
  * Central plugin bootstrap — wires every component together.
@@ -43,6 +44,10 @@ final class Plugin
         $this->load_textdomain();
         $this->register_cron_handler();
         $this->register_assets();
+
+        // Register the SFS reporter cron handler once — prevents double-firing when
+        // both WordPress and WooCommerce integrations are active.
+        ( new SfsReporter( $this->settings, $this->logger ) )->register();
 
         // Front-end integrations.
         $wp = new WordPressIntegration($this->settings, $this->logger);

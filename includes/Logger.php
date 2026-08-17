@@ -30,7 +30,7 @@ class Logger
         string $ip,
         string $email = '',
         bool $reported_sfs = false
-    ): void {
+    ): int {
         global $wpdb;
 
         $email_hash = $email !== ''
@@ -48,6 +48,8 @@ class Logger
             ],
             ['%s', '%s', '%s', '%s', '%d']
         );
+
+        return (int) $wpdb->insert_id;
     }
 
     /**

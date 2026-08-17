@@ -41,8 +41,6 @@ class WooCommerceIntegration
      */
     public function register(): void
     {
-        $this->sfs_reporter->register();
-
         // Product reviews.
         add_action('woocommerce_review_comment_form_after_comment_notes', [$this, 'render_review_fields']);
 
@@ -218,10 +216,7 @@ class WooCommerceIntegration
      */
     private function record_block(string $trap, string $form, string $ip, string $email): void
     {
-        $this->logger->log($trap, $form, $ip, $email);
-
-        global $wpdb;
-        $log_id = (int) $wpdb->insert_id;
+        $log_id = $this->logger->log($trap, $form, $ip, $email);
 
         if ($trap === 'sfs') {
             $this->sfs_reporter->maybe_schedule_report($ip, $email, $log_id);

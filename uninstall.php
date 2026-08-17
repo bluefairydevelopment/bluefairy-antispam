@@ -26,9 +26,10 @@ $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
     "DELETE FROM `{$wpdb->options}` WHERE `option_name` LIKE '_transient_bfas_%' OR `option_name` LIKE '_transient_timeout_bfas_%'"
 );
 
-// Unschedule the log cleanup cron event.
+// Unschedule all cron events.
 $timestamp = wp_next_scheduled('bfas_log_cleanup');
 if ($timestamp) {
     wp_unschedule_event($timestamp, 'bfas_log_cleanup');
 }
 wp_clear_scheduled_hook('bfas_log_cleanup');
+wp_clear_scheduled_hook('bfas_sfs_report_event');

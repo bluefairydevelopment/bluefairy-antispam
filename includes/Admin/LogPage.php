@@ -74,7 +74,7 @@ class LogPage
                 ?>
             </p>
 
-            <form method="get">
+            <form method="post">
                 <input type="hidden" name="page" value="bfas-log">
                 <?php
                 $table->search_box(__('Search by IP', 'bluefairy-antispam'), 'bfas-search');
@@ -110,15 +110,26 @@ class LogPage
         }
 
         global $wpdb;
-        foreach ($ids as $id) {
-            $wpdb->delete( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-                $wpdb->prefix . 'bfas_log',
-                ['id' => $id],
-                ['%d']
-            );
-        }
 
-        wp_safe_redirect(admin_url('tools.php?page=bfas-log&deleted=' . count($ids)));
+        $placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+        $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.NotPrepared
+            $wpdb->prepare(
+                "DELETE FROM `{$wpdb->prefix}bfas_log` WHERE `id` IN ({$placeholders})", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                ...$ids
+            )
+        );
+
+        $redirect = add_query_arg(
+            array_filter( [
+                'page'        => 'bfas-log',
+                'deleted'     => count( $ids ),
+                'trap_filter' => isset( $_GET['trap_filter'] ) ? sanitize_key( $_GET['trap_filter'] ) : '',
+                's'           => isset( $_GET['s'] ) ? sanitize_text_field( $_GET['s'] ) : '',
+                'paged'       => isset( $_GET['paged'] ) ? absint( $_GET['paged'] ) : '',
+            ] ),
+            admin_url( 'tools.php' )
+        );
+        wp_safe_redirect( $redirect );
         exit;
     }
 }
