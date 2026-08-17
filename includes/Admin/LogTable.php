@@ -62,7 +62,7 @@ class LogTable extends \WP_List_Table
      *
      * @param array<string, mixed> $item
      */
-    public function column_cb(mixed $item): string
+    public function column_cb( $item ): string
     {
         return '<input type="checkbox" name="log_ids[]" value="' . absint($item['id']) . '">';
     }
@@ -73,7 +73,7 @@ class LogTable extends \WP_List_Table
      * @param array<string, mixed> $item
      * @param string               $column_name
      */
-    public function column_default(mixed $item, string $column_name): string
+    public function column_default( $item, $column_name ): string
     {
         return match ($column_name) {
             'blocked_at'   => esc_html($item['blocked_at'] ?? ''),
@@ -148,7 +148,7 @@ class LogTable extends \WP_List_Table
      *
      * @param string $which 'top' or 'bottom'
      */
-    public function extra_tablenav(string $which): void
+    public function extra_tablenav( $which ): void
     {
         if ($which !== 'top') {
             return;
