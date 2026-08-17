@@ -1,0 +1,87 @@
+BlueFairy Anti-Spam — Marketing Content
+==========================================
+
+
+3-SENTENCE SUMMARY
+------------------
+
+BlueFairy Anti-Spam silently blocks bot submissions on WordPress comments, user registration, WooCommerce reviews, My Account registration, and checkout — no CAPTCHAs, no puzzles, no friction for real visitors. An invisible honeypot field and a cryptographically signed time-trap token stop bots the moment they touch your forms, while an optional Stop Forum Spam integration cross-references known spammer IPs and emails from a global database. Always free, requires zero configuration, and protects all your forms from the moment you activate it — GPL-2.0-or-later, PHP 8.1+, WordPress 6.5+.
+
+
+CSS CLASS PREFIX
+----------------
+
+bfas
+
+All classes in the product description HTML, hub page, FAQ page, and
+sidebar widget card use this prefix to avoid collisions.
+
+
+HTML LONG DESCRIPTION
+---------------------
+
+(Used as WooCommerce product description. Classes match the
+.bfas-sp-desc .bfas-dc-* rules in single-product-anti-spam.html)
+
+<div class="bfas-dc-grid">
+
+  <div class="bfas-dc-card">
+    <div class="bfas-dc-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b5fc0" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    </div>
+    <h3>Honeypot Trap</h3>
+    <p>A hidden field is added to every protected form. Invisible to humans — bots fill it in and get blocked instantly. Field name rotates across a pool of eight realistic names so bots can't blacklist it.</p>
+  </div>
+
+  <div class="bfas-dc-card">
+    <div class="bfas-dc-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b5fc0" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    </div>
+    <h3>Time Trap</h3>
+    <p>A cryptographically signed HMAC token is embedded at page load. Submissions that arrive faster than a human can type are rejected. Bots move fast. Too fast.</p>
+  </div>
+
+  <div class="bfas-dc-card">
+    <div class="bfas-dc-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b5fc0" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    </div>
+    <h3>Stop Forum Spam (optional)</h3>
+    <p>Cross-reference visitor IPs and emails against the world's largest spam database. Disabled by default — you opt in. No data is ever sent without your explicit choice.</p>
+  </div>
+
+  <div class="bfas-dc-card">
+    <div class="bfas-dc-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b5fc0" stroke-width="2"><rect x="3" y="3" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="17" width="18" height="4" rx="1"/></svg>
+    </div>
+    <h3>Log &amp; Dashboard</h3>
+    <p>Every blocked submission is logged with timestamp, trap type, form, IP, and hashed email. View stats in the dashboard widget. Search, filter, and bulk-delete from the log page.</p>
+  </div>
+
+</div>
+
+<div class="bfas-dc-shots">
+  <figure>
+    <img src="/wp-content/uploads/2026/08/AntiSpamSettings-2.png" alt="Anti-Spam settings page under Tools">
+    <figcaption>One settings page. Honeypot and time trap on by default.</figcaption>
+  </figure>
+  <figure>
+    <img src="/wp-content/uploads/2026/08/AntiSpamLog-3.png" alt="Anti-Spam log page — searchable and filterable">
+    <figcaption>Searchable log with trap-type filter and bulk delete.</figcaption>
+  </figure>
+</div>
+
+<div class="bfas-dc-included">
+  <h3>What&rsquo;s included</h3>
+  <ul>
+    <li>Honeypot trap (all supported forms)</li>
+    <li>HMAC time trap (configurable threshold)</li>
+    <li>Stop Forum Spam lookup (optional, off by default)</li>
+    <li>SFS reporting (requires free SFS API key)</li>
+    <li>Dashboard widget with live stats</li>
+    <li>Searchable, filterable log page</li>
+    <li>Logged-in users bypass all traps</li>
+    <li>WooCommerce Block checkout support</li>
+    <li>GPL-2.0-or-later &middot; PHP 8.1+ &middot; WordPress 6.5+</li>
+    <li><strong>Always free.</strong> Because we hate spam that much.</li>
+  </ul>
+</div>
