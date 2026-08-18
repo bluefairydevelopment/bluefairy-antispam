@@ -1,0 +1,14 @@
+.distignore
+.gitignore
+.phpunit.cache/
+composer.json
+composer.lock
+phpunit.xml.dist
+tests/
+vendor/
+wp-org-assets/
+docs/
+CHANGELOG.md
+README.md
+blueprint.json
+phpstan.neon

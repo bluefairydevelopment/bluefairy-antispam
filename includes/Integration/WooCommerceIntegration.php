@@ -143,7 +143,7 @@ class WooCommerceIntegration
         }
 
         $ip    = $this->get_ip();
-        $email = isset($_POST['billing_email']) ? sanitize_email((string) $_POST['billing_email']) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+        $email = isset($_POST['billing_email']) ? sanitize_email(wp_unslash((string) $_POST['billing_email'])) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 
         $spam_trap = $this->check_spam('wc_checkout', $ip, $email);
 
@@ -185,7 +185,7 @@ class WooCommerceIntegration
             if (class_exists(\Automattic\WooCommerce\StoreApi\Exceptions\RouteException::class)) {
                 throw new \Automattic\WooCommerce\StoreApi\Exceptions\RouteException(
                     'bfas_spam',
-                    __('Your order was blocked as spam. If this is wrong, please contact us.', 'bluefairy-antispam'),
+                    esc_html__('Your order was blocked as spam. If this is wrong, please contact us.', 'bluefairy-antispam'),
                     400
                 );
             }
@@ -235,6 +235,6 @@ class WooCommerceIntegration
      */
     private function get_ip(): string
     {
-        return sanitize_text_field((string) ($_SERVER['REMOTE_ADDR'] ?? ''));
+        return sanitize_text_field(wp_unslash((string) ($_SERVER['REMOTE_ADDR'] ?? '')));
     }
 }

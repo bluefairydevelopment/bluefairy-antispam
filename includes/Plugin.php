@@ -43,7 +43,6 @@ final class Plugin
      */
     public function boot(): void
     {
-        $this->load_textdomain();
         $this->register_cron_handler();
         $this->register_assets();
 
@@ -106,18 +105,6 @@ final class Plugin
             }
             return false;
         }, 10, 5);
-    }
-
-    /**
-     * Load plugin translations.
-     */
-    private function load_textdomain(): void
-    {
-        load_plugin_textdomain(
-            'bluefairy-antispam',
-            false,
-            dirname(plugin_basename(BFAS_FILE)) . '/languages'
-        );
     }
 
     /**

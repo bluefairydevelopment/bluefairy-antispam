@@ -27,9 +27,9 @@ $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 );
 
 // Unschedule all cron events.
-$timestamp = wp_next_scheduled('bfas_log_cleanup');
-if ($timestamp) {
-    wp_unschedule_event($timestamp, 'bfas_log_cleanup');
+$bfas_timestamp = wp_next_scheduled('bfas_log_cleanup');
+if ($bfas_timestamp) {
+    wp_unschedule_event($bfas_timestamp, 'bfas_log_cleanup');
 }
 wp_clear_scheduled_hook('bfas_log_cleanup');
 wp_clear_scheduled_hook('bfas_sfs_report_event');

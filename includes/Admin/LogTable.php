@@ -5,6 +5,10 @@ namespace BlueFairy\AntiSpam\Admin;
 
 use BlueFairy\AntiSpam\LogRepository;
 
+if (! defined('ABSPATH')) {
+    exit;
+}
+
 if (! class_exists('WP_List_Table')) {
     require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
 }
@@ -114,10 +118,10 @@ class LogTable extends \WP_List_Table
     {
         $per_page    = 20;
         $current     = $this->get_pagenum();
-        $orderby     = isset($_GET['orderby']) ? sanitize_key($_GET['orderby']) : 'blocked_at'; // phpcs:ignore WordPress.Security.NonceVerification
-        $order       = isset($_GET['order']) && strtoupper($_GET['order']) === 'ASC' ? 'ASC' : 'DESC'; // phpcs:ignore WordPress.Security.NonceVerification
-        $trap_filter = isset($_GET['trap_filter']) ? sanitize_key($_GET['trap_filter']) : ''; // phpcs:ignore WordPress.Security.NonceVerification
-        $search_ip   = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+        $orderby     = isset($_GET['orderby']) ? sanitize_key(wp_unslash($_GET['orderby'])) : 'blocked_at'; // phpcs:ignore WordPress.Security.NonceVerification
+        $order       = isset($_GET['order']) && strtoupper(sanitize_key(wp_unslash($_GET['order']))) === 'ASC' ? 'ASC' : 'DESC'; // phpcs:ignore WordPress.Security.NonceVerification
+        $trap_filter = isset($_GET['trap_filter']) ? sanitize_key(wp_unslash($_GET['trap_filter'])) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+        $search_ip   = isset($_GET['s']) ? sanitize_text_field(wp_unslash($_GET['s'])) : ''; // phpcs:ignore WordPress.Security.NonceVerification
         $sfs_only    = isset($_GET['sfs_filter']) && $_GET['sfs_filter'] === '1'; // phpcs:ignore WordPress.Security.NonceVerification
 
         $total = $this->repo->count($trap_filter, $search_ip, $sfs_only);

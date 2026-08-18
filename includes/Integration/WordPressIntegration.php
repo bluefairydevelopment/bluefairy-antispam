@@ -257,6 +257,6 @@ class WordPressIntegration
     private function get_ip(): string
     {
         // Trust only REMOTE_ADDR — do not use X-Forwarded-For without proxy config.
-        return sanitize_text_field((string) ($_SERVER['REMOTE_ADDR'] ?? ''));
+        return sanitize_text_field(wp_unslash((string) ($_SERVER['REMOTE_ADDR'] ?? '')));
     }
 }

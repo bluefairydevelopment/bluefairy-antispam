@@ -55,10 +55,10 @@ class Honeypot
             return;
         }
 
-        $name = esc_attr($this->field_name($form_type));
+        $field_name = $this->field_name($form_type);
         echo '<div class="bfas-hp-wrap" aria-hidden="true">';
-        echo '<label for="bfas_' . $name . '">' . esc_html__('Leave this field empty', 'bluefairy-antispam') . '</label>';
-        echo '<input type="text" id="bfas_' . $name . '" name="' . $name . '" value="" class="bfas-hp-field" aria-hidden="true" tabindex="-1" autocomplete="off">';
+        echo '<label for="bfas_' . esc_attr($field_name) . '">' . esc_html__('Leave this field empty', 'bluefairy-antispam') . '</label>';
+        echo '<input type="text" id="bfas_' . esc_attr($field_name) . '" name="' . esc_attr($field_name) . '" value="" class="bfas-hp-field" aria-hidden="true" tabindex="-1" autocomplete="off">';
         echo '</div>';
     }
 
