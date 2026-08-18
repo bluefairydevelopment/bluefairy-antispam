@@ -49,8 +49,8 @@ class WooCommerceIntegration
         add_action('woocommerce_register_form', [$this, 'render_wc_register_fields']);
         add_filter('woocommerce_registration_errors', [$this, 'validate_wc_registration'], 10, 3);
 
-        // Shortcode checkout.
-        add_action('woocommerce_checkout_after_order_notes', [$this, 'render_checkout_fields']);
+        // Shortcode checkout — woocommerce_after_order_notes fires inside <form> in form-shipping.php.
+        add_action('woocommerce_after_order_notes', [$this, 'render_checkout_fields']);
         add_action('woocommerce_checkout_process', [$this, 'validate_checkout']);
 
         // Block checkout (Store API).
