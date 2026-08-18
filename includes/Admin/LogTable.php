@@ -120,8 +120,8 @@ class LogTable extends \WP_List_Table
         $current     = $this->get_pagenum();
         $orderby     = isset($_GET['orderby']) ? sanitize_key(wp_unslash($_GET['orderby'])) : 'blocked_at'; // phpcs:ignore WordPress.Security.NonceVerification
         $order       = isset($_GET['order']) && strtoupper(sanitize_key(wp_unslash($_GET['order']))) === 'ASC' ? 'ASC' : 'DESC'; // phpcs:ignore WordPress.Security.NonceVerification
-        $trap_filter = isset($_GET['trap_filter']) ? sanitize_key(wp_unslash($_GET['trap_filter'])) : ''; // phpcs:ignore WordPress.Security.NonceVerification
-        $search_ip   = isset($_GET['s']) ? sanitize_text_field(wp_unslash($_GET['s'])) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+        $trap_filter = isset($_REQUEST['trap_filter']) ? sanitize_key(wp_unslash($_REQUEST['trap_filter'])) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+        $search_ip   = isset($_REQUEST['s']) ? sanitize_text_field(wp_unslash($_REQUEST['s'])) : ''; // phpcs:ignore WordPress.Security.NonceVerification
         $sfs_only    = isset($_GET['sfs_filter']) && $_GET['sfs_filter'] === '1'; // phpcs:ignore WordPress.Security.NonceVerification
 
         $total = $this->repo->count($trap_filter, $search_ip, $sfs_only);
@@ -195,7 +195,7 @@ class LogTable extends \WP_List_Table
         }
 
         $trap_types = $this->repo->get_trap_types();
-        $current    = isset($_GET['trap_filter']) ? sanitize_key($_GET['trap_filter']) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+        $current    = isset($_REQUEST['trap_filter']) ? sanitize_key($_REQUEST['trap_filter']) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 
         echo '<div class="alignleft actions">';
         echo '<select name="trap_filter">';

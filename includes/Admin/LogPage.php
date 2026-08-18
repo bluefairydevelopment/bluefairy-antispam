@@ -60,9 +60,19 @@ class LogPage
         $table->prepare_items();
 
         $stats = $this->logger->get_stats();
+
+        $deleted_count = isset($_GET['deleted']) ? absint($_GET['deleted']) : 0; // phpcs:ignore WordPress.Security.NonceVerification
         ?>
         <div class="wrap">
             <h1><?php esc_html_e('Anti-Spam Log', 'bluefairy-antispam'); ?></h1>
+            <?php if ($deleted_count > 0) : ?>
+            <div class="notice notice-success is-dismissible"><p><?php
+                echo esc_html(
+                    /* translators: %d = number of deleted log entries */
+                    sprintf(_n('%d log entry deleted.', '%d log entries deleted.', $deleted_count, 'bluefairy-antispam'), $deleted_count)
+                );
+            ?></p></div>
+            <?php endif; ?>
 
             <p>
                 <?php

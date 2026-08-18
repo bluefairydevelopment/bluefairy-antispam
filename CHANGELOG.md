@@ -7,6 +7,15 @@ Versioning: Major.Minor.Patch (major = architecture shift, minor = new feature, 
 
 ---
 
+## [1.1.1] — 2026-08-18
+
+### Fixed
+
+- **Log filter persistence after bulk-delete**: `trap_filter` and search (`s`) parameters are now read from `$_REQUEST` instead of `$_GET`, so the selected filter and search term survive the POST-redirect cycle that follows a bulk action.
+- **Bulk-delete success notice**: the Anti-Spam Log page now shows a dismissible "N log entries deleted." notice after a bulk-delete operation.
+
+---
+
 ## [1.1.0] — 2026-08-18
 
 ### Added

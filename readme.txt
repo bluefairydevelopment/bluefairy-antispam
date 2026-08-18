@@ -4,7 +4,7 @@ Tags: spam, anti-spam, honeypot, comments, woocommerce
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 1.1.0
+Stable tag: 1.1.1
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -95,6 +95,10 @@ No data is ever sent without your explicit opt-in.
 3. Anti-Spam log — searchable, filterable, with Reported to SFS view tab.
 
 == Changelog ==
+
+= 1.1.1 =
+* Fixed: Log filter (trap type, search) now persists after bulk-delete actions (was lost because filters were read from $_GET, which is empty after POST redirect).
+* Fixed: Bulk-delete on the Anti-Spam Log now shows a success notice with the count of entries deleted.
 
 = 1.1.0 =
 * Added: when an admin marks a comment as spam from the Comments list or post edit screen, the commenter's IP and email are automatically reported to Stop Forum Spam (requires SFS enabled + API key configured).
