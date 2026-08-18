@@ -23,6 +23,11 @@
             "BlueFairy\\AntiSpam\\": "includes/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "BlueFairy\\AntiSpam\\Tests\\": "tests/"
+        }
+    },
     "scripts": {
         "phpstan": "vendor/bin/phpstan analyse",
         "test": "vendor/bin/phpunit"
