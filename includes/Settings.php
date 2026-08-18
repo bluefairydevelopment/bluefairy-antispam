@@ -13,9 +13,9 @@ class Settings
 
     /** @var array<string, mixed> */
     private const DEFAULTS = [
-        'honeypot_enabled'    => true,
-        'timetrap_enabled'    => true,
-        'sfs_enabled'         => false,
+        'honeypot_enabled'    => '1',
+        'timetrap_enabled'    => '1',
+        'sfs_enabled'         => '0',
         'min_time_seconds'    => 3,
         'log_retention_days'  => 90,
         'sfs_check_threshold' => 1,

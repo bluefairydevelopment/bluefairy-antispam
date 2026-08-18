@@ -257,9 +257,9 @@ class SettingsPage
 
         $clean = Settings::defaults();
 
-        $clean['honeypot_enabled']    = ! empty($input['honeypot_enabled']);
-        $clean['timetrap_enabled']    = ! empty($input['timetrap_enabled']);
-        $clean['sfs_enabled']         = ! empty($input['sfs_enabled']);
+        $clean['honeypot_enabled']    = ! empty($input['honeypot_enabled']) ? '1' : '0';
+        $clean['timetrap_enabled']    = ! empty($input['timetrap_enabled']) ? '1' : '0';
+        $clean['sfs_enabled']         = ! empty($input['sfs_enabled']) ? '1' : '0';
         $clean['min_time_seconds']    = max(1, absint($input['min_time_seconds'] ?? 3));
         $clean['log_retention_days']  = max(1, absint($input['log_retention_days'] ?? 90));
         $clean['sfs_check_threshold'] = min(100, max(0, absint($input['sfs_check_threshold'] ?? 1)));
