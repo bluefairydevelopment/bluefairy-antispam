@@ -24,7 +24,7 @@ class AbilityRegistrar
     }
 
     /**
-     * Register the ability category and abilities on init.
+     * Register the ability category and abilities on the correct WP 6.9 hooks.
      */
     public function register(): void
     {
@@ -32,18 +32,12 @@ class AbilityRegistrar
             return;
         }
 
-        add_action('init', [$this, 'do_register']);
+        add_action('wp_abilities_api_categories_init', [$this, 'do_register_category']);
+        add_action('wp_abilities_api_init', [$this, 'do_register_abilities']);
     }
 
-    /**
-     * Perform the actual registration.
-     */
-    public function do_register(): void
+    public function do_register_category(): void
     {
-        if (! function_exists('wp_register_ability_category') || ! function_exists('wp_register_ability')) {
-            return;
-        }
-
         wp_register_ability_category(
             'bluefairy-antispam',
             [
@@ -51,7 +45,10 @@ class AbilityRegistrar
                 'description' => __('Read-only access to anti-spam logs, stats, and settings.', 'bluefairy-antispam'),
             ]
         );
+    }
 
+    public function do_register_abilities(): void
+    {
         wp_register_ability(
             'bluefairy-antispam/get-log-entries',
             [

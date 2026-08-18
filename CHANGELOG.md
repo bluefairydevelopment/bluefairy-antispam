@@ -7,6 +7,14 @@ Versioning: Major.Minor.Patch (major = architecture shift, minor = new feature, 
 
 ---
 
+## [1.0.1] — 2026-08-17
+
+### Fixed
+
+- Register WP 6.9 abilities on `wp_abilities_api_categories_init` / `wp_abilities_api_init` instead of `init` to eliminate deprecation notices
+
+---
+
 ## [1.0.0] — 2026-08-17
 
 ### Added
