@@ -1,4 +1,4 @@
-=== BlueFairy Anti-Spam ===
+=== BlueFairy AntiSpam ===
 Contributors: bluefairydevelopment
 Tags: spam, anti-spam, honeypot, comments, woocommerce
 Requires at least: 6.5
@@ -14,7 +14,7 @@ We hate spam. No CAPTCHAs. No third-party puzzles. Just invisible traps that cat
 
 We hate spam with a burning passion. We hate it so much we built this plugin for free.
 
-**BlueFairy Anti-Spam** stops bot submissions on comments, user registration, WooCommerce reviews, My Account registration, and checkout — without a single CAPTCHA in sight. No puzzles. No friction on the path to purchase. Just invisible protection working silently in the background.
+**BlueFairy AntiSpam** stops bot submissions on comments, user registration, WooCommerce reviews, My Account registration, and checkout — without a single CAPTCHA in sight. No puzzles. No friction on the path to purchase. Just invisible protection working silently in the background.
 
 **How it works:**
 
