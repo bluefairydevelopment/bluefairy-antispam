@@ -215,7 +215,12 @@ class SettingsPage
     {
         $value = $this->settings->get_sfs_api_key();
         echo '<input type="text" name="bfas_sfs_api_key" value="' . esc_attr($value) . '" class="regular-text">';
-        echo '<p class="description">' . esc_html__('Required only for reporting spammers back to Stop Forum Spam. Leave blank to check only.', 'bluefairy-antispam') . '</p>';
+        echo '<p class="description">';
+        echo wp_kses(
+            __('Required only for <em>reporting</em> confirmed spammers back to Stop Forum Spam. Leave blank to use the lookup check only. <a href="https://www.stopforumspam.com/signup" target="_blank" rel="noopener noreferrer">Get a free API key at stopforumspam.com</a>.', 'bluefairy-antispam'),
+            ['em' => [], 'a' => ['href' => [], 'target' => [], 'rel' => []]]
+        );
+        echo '</p>';
     }
 
     /** @return void */

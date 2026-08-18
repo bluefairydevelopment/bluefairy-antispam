@@ -2,9 +2,9 @@
 Contributors: bluefairydevelopment
 Tags: spam, anti-spam, honeypot, comments, registration, woocommerce
 Requires at least: 6.5
-Tested up to: 6.8
+Tested up to: 6.9
 Requires PHP: 8.1
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -53,6 +53,10 @@ No. Real customers never interact with any trap field. The honeypot is invisible
 
 No. SFS is entirely optional and off by default. Honeypot and time trap work without it.
 
+To enable SFS checking (IP and email lookup only), turn it on in **Tools > Anti-Spam** — no account needed.
+
+To also *report* confirmed spammers back to SFS, you need a free API key. Register at https://www.stopforumspam.com/signup and paste your key into the SFS API key field.
+
 = Does it work with the WooCommerce Block checkout? =
 
 Yes. The Block checkout uses the Store API, so POST-based traps don't apply — but the SFS check still runs if enabled.
@@ -64,6 +68,10 @@ When a submission is blocked: the time, which trap fired, which form, the IP add
 = How long are logs kept? =
 
 90 days by default. Configurable under **Tools > Anti-Spam**.
+
+= When I mark a comment as spam in the admin, does the plugin report it? =
+
+Yes — if Stop Forum Spam is enabled and an API key is configured, marking a comment as spam from the Comments list or post edit screen will automatically report the commenter's IP and email to SFS.
 
 == Third Party Services ==
 
@@ -84,14 +92,25 @@ No data is ever sent without your explicit opt-in.
 
 1. Dashboard widget showing total spammers blocked.
 2. Settings page under Tools > Anti-Spam.
-3. Anti-Spam log — searchable and filterable.
+3. Anti-Spam log — searchable, filterable, with Reported to SFS view tab.
 
 == Changelog ==
+
+= 1.1.0 =
+* Added: when an admin marks a comment as spam from the Comments list or post edit screen, the commenter's IP and email are automatically reported to Stop Forum Spam (requires SFS enabled + API key configured).
+* Added: "Reported to SFS" view tab on the Anti-Spam Log page so you can filter to see only submissions forwarded to Stop Forum Spam.
+* Added: PHPUnit unit test suite (23 tests covering Honeypot and TimeTrap classes).
+
+= 1.0.1 =
+* Fixed: register WP 6.9 abilities on correct action hooks to eliminate deprecation notices.
 
 = 1.0.0 =
 * Initial release. Honeypot, time trap, optional Stop Forum Spam integration, dashboard widget, admin log.
 
 == Upgrade Notice ==
+
+= 1.1.0 =
+New: marking a comment as spam in admin now auto-reports to Stop Forum Spam (if enabled). New "Reported to SFS" tab on the log page.
 
 = 1.0.0 =
 Initial release.
