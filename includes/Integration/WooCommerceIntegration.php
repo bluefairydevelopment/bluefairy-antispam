@@ -41,8 +41,9 @@ class WooCommerceIntegration
      */
     public function register(): void
     {
-        // Product reviews.
-        add_action('woocommerce_review_comment_form_after_comment_notes', [$this, 'render_review_fields']);
+        // Product reviews — use comment_form action (fired by WC's call to comment_form()),
+        // guarded with is_product() so it only fires on product pages.
+        add_action('comment_form', [$this, 'render_review_fields']);
 
         // My Account registration.
         add_action('woocommerce_register_form', [$this, 'render_wc_register_fields']);
@@ -62,9 +63,14 @@ class WooCommerceIntegration
 
     /**
      * Render trap fields inside the WooCommerce review form.
+     * Fires on the comment_form action; only runs on product pages.
      */
     public function render_review_fields(): void
     {
+        if (! function_exists('is_product') || ! is_product()) {
+            return;
+        }
+
         $this->honeypot->render_field('wc_review');
         $this->timetrap->render_fields('wc_review');
     }

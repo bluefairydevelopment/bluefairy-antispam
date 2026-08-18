@@ -35,7 +35,7 @@ class WordPressIntegration
     }
 
     /**
-     * Register all WordPress hooks.
+     * Register all WordPress front-end hooks.
      */
     public function register(): void
     {
@@ -49,15 +49,48 @@ class WordPressIntegration
         add_filter('registration_errors', [$this, 'validate_registration'], 10, 3);
     }
 
+    /**
+     * Register admin-only hooks (mark-as-spam → SFS reporting).
+     */
+    public function register_admin_hooks(): void
+    {
+        add_action('transition_comment_status', [$this, 'on_comment_marked_spam'], 10, 3);
+    }
+
+    /**
+     * When an admin marks a comment as spam, log it and report to SFS.
+     *
+     * @param string      $new_status New comment status.
+     * @param string      $old_status Previous comment status.
+     * @param \WP_Comment $comment    The comment object.
+     */
+    public function on_comment_marked_spam(string $new_status, string $old_status, \WP_Comment $comment): void
+    {
+        if ($new_status !== 'spam' || $old_status === 'spam') {
+            return;
+        }
+
+        $ip    = sanitize_text_field((string) $comment->comment_author_IP);
+        $email = sanitize_email((string) $comment->comment_author_email);
+
+        $log_id = $this->logger->log('manual_spam', 'wp_comment_admin', $ip, $email);
+        $this->sfs_reporter->maybe_schedule_report($ip, $email, $log_id);
+    }
+
     // -------------------------------------------------------------------------
     // Comment form
     // -------------------------------------------------------------------------
 
     /**
      * Render honeypot + time-trap fields in the comment form.
+     * Skips on product pages — WooCommerceIntegration handles those.
      */
     public function render_comment_fields(): void
     {
+        if (function_exists('is_product') && is_product()) {
+            return;
+        }
+
         $this->honeypot->render_field('wp_comment');
         $this->timetrap->render_fields('wp_comment');
     }
@@ -78,10 +111,15 @@ class WordPressIntegration
         $ip    = $this->get_ip();
         $email = isset($comment_data['comment_author_email']) ? (string) $comment_data['comment_author_email'] : '';
 
-        $spam_trap = $this->check_spam('wp_comment', $ip, $email);
+        // WC reviews are submitted on product pages — use the wc_review form type
+        // so the correct token field (bfas_tk_wc_review) is checked.
+        $post      = get_post($comment_data['comment_post_ID'] ?? 0);
+        $form_type = ($post && $post->post_type === 'product') ? 'wc_review' : 'wp_comment';
+
+        $spam_trap = $this->check_spam($form_type, $ip, $email);
 
         if ($spam_trap !== null) {
-            $this->record_block($spam_trap, 'wp_comment', $ip, $email);
+            $this->record_block($spam_trap, $form_type, $ip, $email);
             wp_die(
                 esc_html__('Your comment was blocked as spam. If this is wrong, please contact us.', 'bluefairy-antispam'),
                 esc_html__('Spam Detected', 'bluefairy-antispam'),

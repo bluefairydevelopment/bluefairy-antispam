@@ -281,6 +281,7 @@ class SettingsPage
         ?>
         <div class="wrap">
             <h1><?php esc_html_e('BlueFairy Anti-Spam Settings', 'bluefairy-antispam'); ?></h1>
+            <?php settings_errors(); ?>
             <form method="post" action="options.php">
                 <?php
                 settings_fields('bfas_settings_group');

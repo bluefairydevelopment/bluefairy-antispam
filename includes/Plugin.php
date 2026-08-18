@@ -63,6 +63,7 @@ final class Plugin
         // Admin.
         if (is_admin()) {
             $this->boot_admin();
+            $wp->register_admin_hooks();
         }
 
         // WP 6.9+ Abilities.

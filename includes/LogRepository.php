@@ -9,9 +9,9 @@ namespace BlueFairy\AntiSpam;
 class LogRepository
 {
     /**
-     * Count log rows, optionally filtered by trap type and/or IP search.
+     * Count log rows, optionally filtered by trap type, IP search, or SFS-reported-only.
      */
-    public function count(string $trap_filter = '', string $search_ip = ''): int
+    public function count(string $trap_filter = '', string $search_ip = '', bool $sfs_only = false): int
     {
         global $wpdb;
 
@@ -26,6 +26,10 @@ class LogRepository
         if ($search_ip !== '') {
             $where[]  = '`ip` LIKE %s';
             $params[] = '%' . $wpdb->esc_like($search_ip) . '%';
+        }
+
+        if ($sfs_only) {
+            $where[] = '`reported_sfs` = 1';
         }
 
         $sql = "SELECT COUNT(*) FROM `{$wpdb->prefix}bfas_log`";
@@ -50,6 +54,7 @@ class LogRepository
      * @param  string $order       ASC|DESC
      * @param  string $trap_filter Optional trap type filter.
      * @param  string $search_ip   Optional IP search string.
+     * @param  bool   $sfs_only    When true, return only rows reported to SFS.
      * @return array<int, array<string, mixed>>
      */
     public function get_rows(
@@ -58,7 +63,8 @@ class LogRepository
         string $orderby = 'blocked_at',
         string $order = 'DESC',
         string $trap_filter = '',
-        string $search_ip = ''
+        string $search_ip = '',
+        bool $sfs_only = false
     ): array {
         global $wpdb;
 
@@ -77,6 +83,10 @@ class LogRepository
         if ($search_ip !== '') {
             $where[]  = '`ip` LIKE %s';
             $params[] = '%' . $wpdb->esc_like($search_ip) . '%';
+        }
+
+        if ($sfs_only) {
+            $where[] = '`reported_sfs` = 1';
         }
 
         $sql = "SELECT `id`, `blocked_at`, `trap`, `form`, `ip`, `reported_sfs` FROM `{$wpdb->prefix}bfas_log`";

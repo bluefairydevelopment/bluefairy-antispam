@@ -118,8 +118,9 @@ class LogTable extends \WP_List_Table
         $order       = isset($_GET['order']) && strtoupper($_GET['order']) === 'ASC' ? 'ASC' : 'DESC'; // phpcs:ignore WordPress.Security.NonceVerification
         $trap_filter = isset($_GET['trap_filter']) ? sanitize_key($_GET['trap_filter']) : ''; // phpcs:ignore WordPress.Security.NonceVerification
         $search_ip   = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+        $sfs_only    = isset($_GET['sfs_filter']) && $_GET['sfs_filter'] === '1'; // phpcs:ignore WordPress.Security.NonceVerification
 
-        $total = $this->repo->count($trap_filter, $search_ip);
+        $total = $this->repo->count($trap_filter, $search_ip, $sfs_only);
 
         $this->set_pagination_args([
             'total_items' => $total,
@@ -139,8 +140,43 @@ class LogTable extends \WP_List_Table
             $orderby,
             $order,
             $trap_filter,
-            $search_ip
+            $search_ip,
+            $sfs_only
         );
+    }
+
+    /**
+     * View links for All / Reported to SFS tabs above the table.
+     *
+     * @return array<string, string>
+     */
+    public function get_views(): array
+    {
+        $total    = $this->repo->count();
+        $reported = $this->repo->count('', '', true);
+
+        $sfs_active = isset($_GET['sfs_filter']) && $_GET['sfs_filter'] === '1'; // phpcs:ignore WordPress.Security.NonceVerification
+
+        $base_url = add_query_arg(['page' => 'bfas-log'], admin_url('tools.php'));
+        $all_url  = esc_url(remove_query_arg('sfs_filter', $base_url));
+        $sfs_url  = esc_url(add_query_arg('sfs_filter', '1', $base_url));
+
+        return [
+            'all' => sprintf(
+                '<a href="%s"%s>%s <span class="count">(%s)</span></a>',
+                $all_url,
+                $sfs_active ? '' : ' class="current"',
+                esc_html__('All', 'bluefairy-antispam'),
+                number_format_i18n($total)
+            ),
+            'sfs' => sprintf(
+                '<a href="%s"%s>%s <span class="count">(%s)</span></a>',
+                $sfs_url,
+                $sfs_active ? ' class="current"' : '',
+                esc_html__('Reported to SFS', 'bluefairy-antispam'),
+                number_format_i18n($reported)
+            ),
+        ];
     }
 
     /**

@@ -7,6 +7,16 @@ Versioning: Major.Minor.Patch (major = architecture shift, minor = new feature, 
 
 ---
 
+## [1.1.0] — 2026-08-18
+
+### Added
+
+- **Mark-as-spam → SFS reporting**: when an admin marks a comment as spam from the Comments list or post edit screen, the commenter's IP and email are automatically reported to Stop Forum Spam (requires SFS enabled + API key configured). The block is logged as trap type `manual_spam`.
+- **PHPUnit test suite**: 23 unit tests covering `Honeypot` (field name determinism, spam detection, disabled state) and `TimeTrap` (missing/tampered/expired/fast tokens, valid token, disabled state, form-scoping).
+- **"Reported to SFS" view tab**: the Anti-Spam Log now has an "All / Reported to SFS" tab so you can filter the log to see only submissions that have been forwarded to Stop Forum Spam.
+
+---
+
 ## [1.0.1] — 2026-08-17
 
 ### Fixed
