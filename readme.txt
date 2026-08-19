@@ -4,7 +4,7 @@ Tags: spam, anti-spam, honeypot, comments, woocommerce
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 1.1.1
+Stable tag: 1.1.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -96,6 +96,9 @@ No data is ever sent without your explicit opt-in.
 
 == Changelog ==
 
+= 1.1.2 =
+* Fixed: SFS enabled, confidence threshold, and API key fields were silently not saving. WordPress calls add_option() instead of issuing a MySQL UPDATE when the stored value equals the default registered via register_setting(), and add_option() is a no-op when the row already exists. Removed the registered default so WordPress always takes the UPDATE path.
+
 = 1.1.1 =
 * Fixed: Log filter (trap type, search) now persists after bulk-delete actions (was lost because filters were read from $_GET, which is empty after POST redirect).
 * Fixed: Bulk-delete on the Anti-Spam Log now shows a success notice with the count of entries deleted.
@@ -112,6 +115,9 @@ No data is ever sent without your explicit opt-in.
 * Initial release. Honeypot, time trap, optional Stop Forum Spam integration, dashboard widget, admin log.
 
 == Upgrade Notice ==
+
+= 1.1.2 =
+Bug fix: settings page fields (SFS enabled, confidence threshold, API key) were silently not saving. Upgrade immediately if you rely on the Stop Forum Spam integration.
 
 = 1.1.0 =
 New: marking a comment as spam in admin now auto-reports to Stop Forum Spam (if enabled). New "Reported to SFS" tab on the log page.
