@@ -52,7 +52,6 @@ class SettingsPage
             'bfas_settings',
             [
                 'sanitize_callback' => [$this, 'sanitize_settings'],
-                'default'           => Settings::defaults(),
             ]
         );
 
@@ -61,7 +60,6 @@ class SettingsPage
             'bfas_sfs_api_key',
             [
                 'sanitize_callback' => 'sanitize_text_field',
-                'default'           => '',
                 'autoload'          => 'no',
             ]
         );

@@ -7,6 +7,14 @@ Versioning: Major.Minor.Patch (major = architecture shift, minor = new feature, 
 
 ---
 
+## [1.1.2] — 2026-08-19
+
+### Fixed
+
+- **Settings not persisting**: Passing `'default'` to `register_setting()` causes WordPress to register a `default_option_{name}` filter. When `update_option()` detects that the stored value equals that registered default, it calls `add_option()` instead of issuing a MySQL UPDATE — which fails silently because the row already exists. Removed `'default'` from both `register_setting()` calls so WordPress always takes the UPDATE path. Affected `sfs_enabled`, `sfs_check_threshold`, and `bfas_sfs_api_key` (the API key field always returns empty because its default is `''`).
+
+---
+
 ## [1.1.1] — 2026-08-18
 
 ### Fixed
