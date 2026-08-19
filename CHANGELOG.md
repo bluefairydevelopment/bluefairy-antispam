@@ -7,6 +7,12 @@ Versioning: Major.Minor.Patch (major = architecture shift, minor = new feature, 
 
 ---
 
+## [1.1.3] — 2026-08-19
+
+### Fixed
+- Remove `Domain Path` header from plugin file — `languages/` directory is empty and excluded from zip, causing Plugin Check warning.
+- Update `Tested up to` to 7.1 in readme.txt.
+
 ## [1.1.2] — 2026-08-19
 
 ### Fixed
