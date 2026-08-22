@@ -1,0 +1,11 @@
+/*
+ * BlueFairy Anti-Spam — dashboard widget styles.
+ * Enqueued on the WP dashboard (index.php) only.
+ */
+.bfas-stats { margin: 0; padding: 0; list-style: none; }
+.bfas-stats li { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #f0f0f0; }
+.bfas-stats li:last-child { border-bottom: none; }
+.bfas-stats strong { font-size: 1.3em; color: #d63638; }
+.bfas-breakdown { margin: 8px 0 0; padding: 0; list-style: none; }
+.bfas-breakdown li { display: flex; justify-content: space-between; font-size: 0.9em; padding: 2px 0; }
+.bfas-widget-footer { margin-top: 10px; font-size: 0.85em; }
