@@ -111,6 +111,48 @@ class Logger
     }
 
     /**
+     * Fetch recent blocked-submission log rows, newest first.
+     *
+     * @return array<int, array{id:int,trap:string,form:string,ip:string,email_hash:string,reported_sfs:bool,blocked_at:string}>
+     */
+    public function get_recent_entries(int $limit = 50, int $offset = 0): array
+    {
+        global $wpdb;
+
+        $limit  = max(1, min(500, $limit));
+        $offset = max(0, $offset);
+
+        $rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+            $wpdb->prepare(
+                "SELECT `id`, `trap`, `form`, `ip`, `email_hash`, `reported_sfs`, `blocked_at`
+                 FROM `{$wpdb->prefix}bfas_log`
+                 ORDER BY `blocked_at` DESC
+                 LIMIT %d OFFSET %d",
+                $limit,
+                $offset
+            ),
+            ARRAY_A
+        );
+
+        if (! is_array($rows)) {
+            return [];
+        }
+
+        return array_map(
+            static fn (array $r): array => [
+                'id'           => (int) $r['id'],
+                'trap'         => (string) $r['trap'],
+                'form'         => (string) $r['form'],
+                'ip'           => (string) $r['ip'],
+                'email_hash'   => (string) $r['email_hash'],
+                'reported_sfs' => (bool) $r['reported_sfs'],
+                'blocked_at'   => (string) $r['blocked_at'],
+            ],
+            $rows
+        );
+    }
+
+    /**
      * Fetch a breakdown of blocks per trap type.
      *
      * @return array<int, array{trap: string, count: int}>

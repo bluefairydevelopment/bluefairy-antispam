@@ -87,4 +87,18 @@ class Settings
     {
         return self::DEFAULTS;
     }
+
+    /**
+     * Return the full settings data array (bfas_settings option).
+     *
+     * SECURITY: bfas_sfs_api_key and bfas_hmac_secret are stored as SEPARATE
+     * options and are NOT included here. Do NOT add them — the get-settings
+     * ability MUST NEVER expose the API key or HMAC secret.
+     *
+     * @return array<string, mixed>
+     */
+    public function get_all(): array
+    {
+        return $this->data;
+    }
 }
