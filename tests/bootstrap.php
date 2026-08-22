@@ -80,3 +80,34 @@ if (! function_exists('sanitize_text_field')) {
 if (! function_exists('absint')) {
     function absint(mixed $maybeint): int { return abs((int) $maybeint); }
 }
+
+if (! function_exists('current_user_can')) {
+    function current_user_can(string $cap): bool
+    {
+        return (bool) ($GLOBALS['bfas_test_user_can'] ?? false);
+    }
+}
+
+if (! function_exists('wp_enqueue_style')) {
+    /** @param array<int, string> $deps */
+    function wp_enqueue_style(string $handle, string $src = '', array $deps = [], string|bool|null $ver = false, string $media = 'all'): void
+    {
+        $GLOBALS['bfas_test_enqueued_styles'][] = compact('handle', 'src', 'ver');
+    }
+}
+
+if (! function_exists('wp_register_ability')) {
+    /** @param array<string, mixed> $args */
+    function wp_register_ability(string $name, array $args): void
+    {
+        $GLOBALS['bfas_test_registered_abilities'][$name] = $args;
+    }
+}
+
+if (! function_exists('wp_register_ability_category')) {
+    /** @param array<string, mixed> $args */
+    function wp_register_ability_category(string $name, array $args): void
+    {
+        $GLOBALS['bfas_test_registered_ability_categories'][$name] = $args;
+    }
+}
