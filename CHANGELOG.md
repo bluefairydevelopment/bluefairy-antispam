@@ -7,6 +7,22 @@ Versioning: Major.Minor.Patch (major = architecture shift, minor = new feature, 
 
 ---
 
+## [1.1.4] — 2026-08-22
+
+### Security
+- **Abilities missing `permission_callback`**: the three WP 6.9 abilities (`bluefairy-antispam/get-log-entries`, `get-stats`, `get-settings`) were registered with `capability => manage_options` but no `permission_callback`. The Abilities API treats `capability` as descriptive metadata; enforcement happens via `permission_callback`. All three abilities now enforce `current_user_can('manage_options')` at runtime.
+- **`get-settings` response defence in depth**: the executor explicitly `unset()`s `sfs_api_key` and `hmac_secret` from its response so a future storage-layout regression cannot leak the Stop Forum Spam API key or the HMAC secret. A dedicated regression test guards this invariant.
+
+### Added
+- Real `execute_callback` handlers for all three abilities (`get-log-entries`, `get-stats`, `get-settings`). Consumers can now actually invoke them rather than only enumerating metadata.
+- `Logger::get_recent_entries()` — paginated log-row fetch used by the `get-log-entries` ability. Limit clamped to `[1, 500]`.
+- `Settings::get_all()` — accessor for the `bfas_settings` option, used by the `get-settings` ability.
+
+### Fixed
+- **Inline `<style>` in dashboard widget**: the widget render method emitted a raw `<style>` block. Moved the CSS to `assets/admin/css/dashboard-widget.css` and enqueued it via `admin_enqueue_scripts` scoped to `$hook === 'index.php'` (dashboard only).
+
+---
+
 ## [1.1.3] — 2026-08-19
 
 ### Fixed
