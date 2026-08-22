@@ -96,6 +96,17 @@ No data is ever sent without your explicit opt-in.
 
 == Changelog ==
 
+= 1.1.4 =
+* Security: WP 6.9 Abilities (get-log-entries, get-stats, get-settings) now enforce manage_options at runtime via permission_callback. Previously only the descriptive capability key was set; the API treats capability as metadata, not enforcement.
+* Security: get-settings ability strips sfs_api_key and hmac_secret from its response as defence in depth; a regression test guards this invariant.
+* Added: real execute_callback handlers for all three abilities — they now return usable data instead of being metadata-only stubs.
+* Added: Logger::get_recent_entries() and Settings::get_all() helpers used by the ability handlers.
+* Fixed: dashboard widget CSS moved out of an inline <style> tag into an enqueued stylesheet, scoped to the WP dashboard (index.php) only.
+
+= 1.1.3 =
+* Fixed: removed empty Domain Path header from the plugin file. The languages/ directory was empty and excluded from the release zip, causing a Plugin Check warning.
+* Compatibility: bumped Tested up to 7.1.
+
 = 1.1.2 =
 * Fixed: SFS enabled, confidence threshold, and API key fields were silently not saving. WordPress calls add_option() instead of issuing a MySQL UPDATE when the stored value equals the default registered via register_setting(), and add_option() is a no-op when the row already exists. Removed the registered default so WordPress always takes the UPDATE path.
 
@@ -115,6 +126,12 @@ No data is ever sent without your explicit opt-in.
 * Initial release. Honeypot, time trap, optional Stop Forum Spam integration, dashboard widget, admin log.
 
 == Upgrade Notice ==
+
+= 1.1.4 =
+Security fix: WP 6.9 Abilities now enforce manage_options via permission_callback (previously only the descriptive capability key was set). Recommended upgrade for anyone on WP 6.9+.
+
+= 1.1.3 =
+Housekeeping release: removed the empty Domain Path header that triggered a Plugin Check warning; bumped Tested up to 7.1.
 
 = 1.1.2 =
 Bug fix: settings page fields (SFS enabled, confidence threshold, API key) were silently not saving. Upgrade immediately if you rely on the Stop Forum Spam integration.
