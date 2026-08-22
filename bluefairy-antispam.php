@@ -5,7 +5,7 @@ declare(strict_types=1);
  * Plugin Name:       BlueFairy AntiSpam
  * Plugin URI:        https://wordpress.bluefairydevelopment.com/anti-spam/
  * Description:       Invisible anti-spam protection for WordPress and WooCommerce. No CAPTCHAs. No friction. Just spam-free forms.
- * Version:           1.1.3
+ * Version:           1.1.4
  * Requires at least: 6.5
  * Requires PHP:      8.1
  * Author:            Blue Fairy Development
@@ -21,7 +21,7 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-define('BFAS_VERSION', '1.1.3');
+define('BFAS_VERSION', '1.1.4');
 define('BFAS_FILE', __FILE__);
 define('BFAS_DIR', plugin_dir_path(__FILE__));
 define('BFAS_URL', plugin_dir_url(__FILE__));
