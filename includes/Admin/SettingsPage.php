@@ -20,12 +20,30 @@ class SettingsPage
     }
 
     /**
-     * Register admin menu item and Settings API hooks.
+     * Register admin menu item, Settings API hooks, and page-scoped assets.
      */
     public function register(): void
     {
-        add_action('admin_menu', [$this, 'add_menu_page']);
-        add_action('admin_init', [$this, 'register_settings']);
+        add_action('admin_menu',            [$this, 'add_menu_page']);
+        add_action('admin_init',            [$this, 'register_settings']);
+        add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
+    }
+
+    /**
+     * Enqueue the settings-page stylesheet only on this plugin's Tools page.
+     */
+    public function enqueue_assets(string $hook): void
+    {
+        if ('tools_page_bfas-settings' !== $hook) {
+            return;
+        }
+
+        wp_enqueue_style(
+            'bfas-settings-page',
+            BFAS_URL . 'assets/admin/css/settings-page.css',
+            [],
+            BFAS_VERSION
+        );
     }
 
     /**
@@ -274,6 +292,27 @@ class SettingsPage
     // -------------------------------------------------------------------------
 
     /**
+     * Render the Managed Support promo block shown above the settings form.
+     */
+    public function render_managed_support_promo(): void
+    {
+        ?>
+        <div class="bfas-promo" role="complementary" aria-label="<?php esc_attr_e('BlueFairy Development managed support', 'bluefairy-antispam'); ?>">
+            <h2 class="bfas-promo__title"><?php esc_html_e('Enterprise-grade support for your business.', 'bluefairy-antispam'); ?></h2>
+            <p class="bfas-promo__body"><?php esc_html_e('Blue Fairy Development brings the best practices of enterprise software teams to small and mid-sized businesses. Security minded, performance focused, tested update workflows, and a real person on the other end — without the overhead of an in-house team.', 'bluefairy-antispam'); ?></p>
+            <p class="bfas-promo__cta">
+                <a class="button button-primary"
+                   href="<?php echo esc_url('https://wordpress.bluefairydevelopment.com/managed-support/'); ?>"
+                   target="_blank"
+                   rel="noopener noreferrer">
+                    <?php esc_html_e('Learn more about managed support →', 'bluefairy-antispam'); ?>
+                </a>
+            </p>
+        </div>
+        <?php
+    }
+
+    /**
      * Render the settings page.
      */
     public function render(): void
@@ -284,6 +323,7 @@ class SettingsPage
         ?>
         <div class="wrap">
             <h1><?php esc_html_e('BlueFairy Anti-Spam Settings', 'bluefairy-antispam'); ?></h1>
+            <?php $this->render_managed_support_promo(); ?>
             <?php settings_errors(); ?>
             <form method="post" action="options.php">
                 <?php

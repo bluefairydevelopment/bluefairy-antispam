@@ -1,0 +1,25 @@
+/*
+ * BlueFairy Anti-Spam — settings page styles.
+ * Enqueued on the settings screen (tools_page_bfas-settings) only.
+ */
+.bfas-promo {
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-left: 4px solid #2271b1;
+    padding: 16px 20px;
+    margin: 12px 0 24px;
+    max-width: 800px;
+    border-radius: 3px;
+}
+.bfas-promo__title {
+    margin: 0 0 8px;
+    font-size: 15px;
+    line-height: 1.3;
+}
+.bfas-promo__body {
+    margin: 0 0 12px;
+    line-height: 1.5;
+}
+.bfas-promo__cta {
+    margin: 0;
+}
