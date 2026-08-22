@@ -18,11 +18,29 @@ class DashboardWidget
     }
 
     /**
-     * Register the dashboard widget.
+     * Register the dashboard widget and its stylesheet.
      */
     public function register(): void
     {
-        add_action('wp_dashboard_setup', [$this, 'add_widget']);
+        add_action('wp_dashboard_setup',    [$this, 'add_widget']);
+        add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
+    }
+
+    /**
+     * Enqueue the widget stylesheet on the WP dashboard only.
+     */
+    public function enqueue_assets(string $hook): void
+    {
+        if ('index.php' !== $hook) {
+            return;
+        }
+
+        wp_enqueue_style(
+            'bfas-dashboard-widget',
+            BFAS_URL . 'assets/admin/css/dashboard-widget.css',
+            [],
+            BFAS_VERSION
+        );
     }
 
     /**
@@ -83,15 +101,6 @@ class DashboardWidget
                 </a>
             </p>
         </div>
-        <style>
-            .bfas-stats { margin: 0; padding: 0; list-style: none; }
-            .bfas-stats li { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #f0f0f0; }
-            .bfas-stats li:last-child { border-bottom: none; }
-            .bfas-stats strong { font-size: 1.3em; color: #d63638; }
-            .bfas-breakdown { margin: 8px 0 0; padding: 0; list-style: none; }
-            .bfas-breakdown li { display: flex; justify-content: space-between; font-size: 0.9em; padding: 2px 0; }
-            .bfas-widget-footer { margin-top: 10px; font-size: 0.85em; }
-        </style>
         <?php
     }
 }
