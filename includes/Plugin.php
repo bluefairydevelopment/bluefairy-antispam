@@ -1,4 +1,10 @@
 <?php
+/**
+ * Central plugin bootstrap — wires every component together.
+ *
+ * @package BlueFairy\AntiSpam
+ */
+
 declare(strict_types=1);
 
 namespace BlueFairy\AntiSpam;
@@ -16,153 +22,179 @@ use BlueFairy\AntiSpam\Traps\TimeTrap;
 /**
  * Central plugin bootstrap — wires every component together.
  */
-final class Plugin
-{
-    private static ?Plugin $instance = null;
+final class Plugin {
 
-    private Settings $settings;
-    private Logger $logger;
+	/**
+	 * The single plugin instance.
+	 *
+	 * @var ?Plugin
+	 */
+	private static ?Plugin $instance = null;
 
-    private function __construct()
-    {
-        $this->settings = new Settings();
-        $this->logger   = new Logger($this->settings);
-    }
+	/**
+	 * Plugin settings.
+	 *
+	 * @var Settings
+	 */
+	private Settings $settings;
 
-    public static function instance(): self
-    {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
+	/**
+	 * Block-event logger.
+	 *
+	 * @var Logger
+	 */
+	private Logger $logger;
 
-        return self::$instance;
-    }
+	/**
+	 * Constructor.
+	 */
+	private function __construct() {
+		$this->settings = new Settings();
+		$this->logger   = new Logger( $this->settings );
+	}
 
-    /**
-     * Boot all plugin components.
-     */
-    public function boot(): void
-    {
-        $this->register_cron_handler();
-        $this->register_assets();
+	/**
+	 * The single plugin instance, created on first use.
+	 */
+	public static function instance(): self {
+		if ( null === self::$instance ) {
+			self::$instance = new self();
+		}
 
-        // Register the SFS reporter cron handler once — prevents double-firing when
-        // both WordPress and WooCommerce integrations are active.
-        ( new SfsReporter( $this->settings, $this->logger ) )->register();
+		return self::$instance;
+	}
 
-        // Front-end integrations.
-        $wp = new WordPressIntegration($this->settings, $this->logger);
-        $wp->register();
+	/**
+	 * Boot all plugin components.
+	 */
+	public function boot(): void {
+		$this->register_cron_handler();
+		$this->register_assets();
 
-        if ($this->is_woocommerce_active()) {
-            $wc = new WooCommerceIntegration($this->settings, $this->logger);
-            $wc->register();
-        }
+		// Register the SFS reporter cron handler once — prevents double-firing when
+		// both WordPress and WooCommerce integrations are active.
+		( new SfsReporter( $this->settings, $this->logger ) )->register();
 
-        // Admin.
-        if (is_admin()) {
-            $this->boot_admin();
-            $wp->register_admin_hooks();
-        }
+		// Front-end integrations.
+		$wp = new WordPressIntegration( $this->settings, $this->logger );
+		$wp->register();
 
-        // WP 6.9+ Abilities.
-        ( new AbilityRegistrar($this->settings, $this->logger) )->register();
+		if ( $this->is_woocommerce_active() ) {
+			$wc = new WooCommerceIntegration( $this->settings, $this->logger );
+			$wc->register();
+		}
 
-        // Third-party integration hooks (e.g. BlueFairy Forms).
-        $this->register_integration_hooks();
-    }
+		// Admin.
+		if ( is_admin() ) {
+			$this->boot_admin();
+			$wp->register_admin_hooks();
+		}
 
-    /**
-     * Wire public action/filter hooks for third-party plugin integration.
-     *
-     * Action: bluefairy_antispam_render_fields( string $form_type )
-     *   Renders honeypot + timetrap fields for the given form type.
-     *
-     * Filter: bluefairy_antispam_check( bool $is_spam, array $post_data, string $form_type, string $ip, string $email )
-     *   Runs honeypot + timetrap checks. Returns true when spam detected.
-     */
-    private function register_integration_hooks(): void
-    {
-        $honeypot = new Honeypot($this->settings);
-        $timetrap = new TimeTrap($this->settings);
+		// WP 6.9+ Abilities.
+		( new AbilityRegistrar( $this->settings, $this->logger ) )->register();
 
-        add_action('bluefairy_antispam_render_fields', function (string $form_type) use ($honeypot, $timetrap): void {
-            $honeypot->render_field($form_type);
-            $timetrap->render_fields($form_type);
-        });
+		// Third-party integration hooks (e.g. BlueFairy Forms).
+		$this->register_integration_hooks();
+	}
 
-        add_filter('bluefairy_antispam_check', function (bool $is_spam, array $post_data, string $form_type, string $ip, string $email) use ($honeypot, $timetrap): bool {
-            if ($is_spam) {
-                return true;
-            }
-            if ($honeypot->is_spam($post_data, $form_type)) {
-                $this->logger->log('honeypot', $form_type, $ip, $email);
-                return true;
-            }
-            if ($timetrap->is_spam($post_data, $form_type)) {
-                $this->logger->log('timetrap', $form_type, $ip, $email);
-                return true;
-            }
-            return false;
-        }, 10, 5);
-    }
+	/**
+	 * Wire public action/filter hooks for third-party plugin integration.
+	 *
+	 * Action: bluefairy_antispam_render_fields( string $form_type )
+	 *   Renders honeypot + timetrap fields for the given form type.
+	 *
+	 * Filter: bluefairy_antispam_check( bool $is_spam, array $post_data, string $form_type, string $ip, string $email )
+	 *   Runs honeypot + timetrap checks. Returns true when spam detected.
+	 */
+	private function register_integration_hooks(): void {
+		$honeypot = new Honeypot( $this->settings );
+		$timetrap = new TimeTrap( $this->settings );
 
-    /**
-     * Register the CSS asset (honeypot field hiding).
-     */
-    private function register_assets(): void
-    {
-        add_action('wp_enqueue_scripts', function (): void {
-            wp_enqueue_style(
-                'bfas-honeypot',
-                BFAS_URL . 'assets/css/honeypot.css',
-                [],
-                BFAS_VERSION
-            );
-        });
-    }
+		add_action(
+			'bluefairy_antispam_render_fields',
+			function ( string $form_type ) use ( $honeypot, $timetrap ): void {
+				$honeypot->render_field( $form_type );
+				$timetrap->render_fields( $form_type );
+			}
+		);
 
-    /**
-     * Register the daily log-cleanup cron handler.
-     */
-    private function register_cron_handler(): void
-    {
-        add_action('bfas_log_cleanup', function (): void {
-            $this->logger->cleanup_old_logs();
-        });
-    }
+		add_filter(
+			'bluefairy_antispam_check',
+			function ( bool $is_spam, array $post_data, string $form_type, string $ip, string $email ) use ( $honeypot, $timetrap ): bool {
+				if ( $is_spam ) {
+					return true;
+				}
+				if ( $honeypot->is_spam( $post_data, $form_type ) ) {
+					$this->logger->log( 'honeypot', $form_type, $ip, $email );
+					return true;
+				}
+				if ( $timetrap->is_spam( $post_data, $form_type ) ) {
+					$this->logger->log( 'timetrap', $form_type, $ip, $email );
+					return true;
+				}
+				return false;
+			},
+			10,
+			5
+		);
+	}
 
-    /**
-     * Boot admin-only components.
-     */
-    private function boot_admin(): void
-    {
-        ( new SettingsPage($this->settings) )->register();
-        ( new LogPage($this->logger) )->register();
-        ( new DashboardWidget($this->logger) )->register();
-    }
+	/**
+	 * Register the CSS asset (honeypot field hiding).
+	 */
+	private function register_assets(): void {
+		add_action(
+			'wp_enqueue_scripts',
+			function (): void {
+				wp_enqueue_style(
+					'bfas-honeypot',
+					BFAS_URL . 'assets/css/honeypot.css',
+					[],
+					BFAS_VERSION
+				);
+			}
+		);
+	}
 
-    /**
-     * Check whether WooCommerce is active.
-     */
-    private function is_woocommerce_active(): bool
-    {
-        return class_exists('WooCommerce');
-    }
+	/**
+	 * Register the daily log-cleanup cron handler.
+	 */
+	private function register_cron_handler(): void {
+		add_action(
+			'bfas_log_cleanup',
+			function (): void {
+				$this->logger->cleanup_old_logs();
+			}
+		);
+	}
 
-    /**
-     * Expose the shared Settings instance.
-     */
-    public function get_settings(): Settings
-    {
-        return $this->settings;
-    }
+	/**
+	 * Boot admin-only components.
+	 */
+	private function boot_admin(): void {
+		( new SettingsPage( $this->settings ) )->register();
+		( new LogPage( $this->logger ) )->register();
+		( new DashboardWidget( $this->logger ) )->register();
+	}
 
-    /**
-     * Expose the shared Logger instance.
-     */
-    public function get_logger(): Logger
-    {
-        return $this->logger;
-    }
+	/**
+	 * Check whether WooCommerce is active.
+	 */
+	private function is_woocommerce_active(): bool {
+		return class_exists( 'WooCommerce' );
+	}
+
+	/**
+	 * Expose the shared Settings instance.
+	 */
+	public function get_settings(): Settings {
+		return $this->settings;
+	}
+
+	/**
+	 * Expose the shared Logger instance.
+	 */
+	public function get_logger(): Logger {
+		return $this->logger;
+	}
 }

@@ -1,4 +1,10 @@
 <?php
+/**
+ * Honeypot trap — renders an invisible field that only bots fill in.
+ *
+ * @package BlueFairy\AntiSpam
+ */
+
 declare(strict_types=1);
 
 namespace BlueFairy\AntiSpam\Traps;
@@ -15,78 +21,92 @@ use BlueFairy\AntiSpam\Settings;
  * CSS (not inline style) hides the wrapper. aria-hidden + tabindex prevent
  * assistive-technology users from interacting with it.
  */
-class Honeypot
-{
-    /** @var string[] */
-    private const FIELD_POOL = [
-        'website2',
-        'address_confirm',
-        'phone_verify',
-        'url_field',
-        'email_confirm2',
-        'contact_url',
-        'homepage_field',
-        'site_address',
-    ];
+class Honeypot {
 
-    private Settings $settings;
+	/**
+	 * Field names a form type's honeypot is picked from.
+	 *
+	 * @var string[]
+	 */
+	private const FIELD_POOL = [
+		'website2',
+		'address_confirm',
+		'phone_verify',
+		'url_field',
+		'email_confirm2',
+		'contact_url',
+		'homepage_field',
+		'site_address',
+	];
 
-    public function __construct(Settings $settings)
-    {
-        $this->settings = $settings;
-    }
+	/**
+	 * Plugin settings.
+	 *
+	 * @var Settings
+	 */
+	private Settings $settings;
 
-    /**
-     * Return the honeypot field name for a given form type.
-     */
-    public function field_name(string $form_type): string
-    {
-        $index = (crc32($form_type) & 0x7FFFFFFF) % 8;
+	/**
+	 * Constructor.
+	 *
+	 * @param Settings $settings Plugin settings.
+	 */
+	public function __construct( Settings $settings ) {
+		$this->settings = $settings;
+	}
 
-        return self::FIELD_POOL[$index];
-    }
+	/**
+	 * Return the honeypot field name for a given form type.
+	 *
+	 * @param string $form_type Form identifier, such as wp_comment or wc_review.
+	 */
+	public function field_name( string $form_type ): string {
+		$index = ( crc32( $form_type ) & 0x7FFFFFFF ) % 8;
 
-    /**
-     * Render the honeypot wrapper + input into the form.
-     */
-    public function render_field(string $form_type): void
-    {
-        if (! (bool) $this->settings->get('honeypot_enabled', true)) {
-            return;
-        }
+		return self::FIELD_POOL[ $index ];
+	}
 
-        $field_name = $this->field_name($form_type);
-        echo '<div class="bfas-hp-wrap" aria-hidden="true">';
-        echo '<label for="bfas_' . esc_attr($field_name) . '">' . esc_html__('Leave this field empty', 'bluefairy-antispam') . '</label>';
-        echo '<input type="text" id="bfas_' . esc_attr($field_name) . '" name="' . esc_attr($field_name) . '" value="" class="bfas-hp-field" aria-hidden="true" tabindex="-1" autocomplete="off">';
-        echo '</div>';
-    }
+	/**
+	 * Render the honeypot wrapper + input into the form.
+	 *
+	 * @param string $form_type Form identifier, such as wp_comment or wc_review.
+	 */
+	public function render_field( string $form_type ): void {
+		if ( ! (bool) $this->settings->get( 'honeypot_enabled', true ) ) {
+			return;
+		}
 
-    /**
-     * Check whether the honeypot was filled in.
-     *
-     * Returns true when spam is detected.
-     *
-     * @param array<string, mixed> $post_data  $_POST data.
-     * @param string               $form_type  The form identifier.
-     */
-    public function is_spam(array $post_data, string $form_type): bool
-    {
-        if (is_user_logged_in()) {
-            return false;
-        }
+		$field_name = $this->field_name( $form_type );
+		echo '<div class="bfas-hp-wrap" aria-hidden="true">';
+		echo '<label for="bfas_' . esc_attr( $field_name ) . '">' . esc_html__( 'Leave this field empty', 'bluefairy-antispam' ) . '</label>';
+		echo '<input type="text" id="bfas_' . esc_attr( $field_name ) . '" name="' . esc_attr( $field_name ) . '" value="" class="bfas-hp-field" aria-hidden="true" tabindex="-1" autocomplete="off">';
+		echo '</div>';
+	}
 
-        if (! (bool) $this->settings->get('honeypot_enabled', true)) {
-            return false;
-        }
+	/**
+	 * Check whether the honeypot was filled in.
+	 *
+	 * Returns true when spam is detected.
+	 *
+	 * @param array<string, mixed> $post_data Submitted form data.
+	 * @param string               $form_type The form identifier.
+	 */
+	public function is_spam( array $post_data, string $form_type ): bool {
+		if ( is_user_logged_in() ) {
+			return false;
+		}
 
-        $field = $this->field_name($form_type);
+		if ( ! (bool) $this->settings->get( 'honeypot_enabled', true ) ) {
+			return false;
+		}
 
-        // Spam if the field is present AND non-empty.
-        if (isset($post_data[$field]) && trim((string) $post_data[$field]) !== '') {
-            return true;
-        }
+		$field = $this->field_name( $form_type );
 
-        return false;
-    }
+		// Spam if the field is present AND non-empty.
+		if ( isset( $post_data[ $field ] ) && trim( (string) $post_data[ $field ] ) !== '' ) {
+			return true;
+		}
+
+		return false;
+	}
 }

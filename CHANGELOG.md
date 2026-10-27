@@ -12,8 +12,13 @@ Versioning: Major.Minor.Patch (major = architecture shift, minor = new feature, 
 ### Added
 - BlueFairy Recipes Pro recipe reviews are protected: the review form gets the honeypot and time trap, and its reviews are checked against them.
 
+### Changed
+- Logged-out comments sent through the WordPress comments API (`/wp/v2/comments`, when a site allows them) are no longer refused just because they carry no form token. A filled honeypot, a forged, too-fast or expired token, or a Stop Forum Spam listing still refuses them; a comment that passes but has no token is held for moderation.
+- The code follows the WordPress Coding Standards, checked by `phpcs.xml.dist` (`composer phpcs`).
+
 ### Fixed
 - A guest review sent by a form that posts to its own REST route was always blocked, because that form never carried the token. When a block happens inside a REST request, the plugin now refuses with an error the route returns as JSON, instead of an HTML error page.
+- The developer documentation named a `bfas_check_submission` filter that does not exist. It now documents the real hooks, `bluefairy_antispam_render_fields` and `bluefairy_antispam_check`.
 
 ## [1.1.4] — 2026-08-22
 

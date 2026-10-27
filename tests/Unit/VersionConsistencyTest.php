@@ -28,7 +28,7 @@ final class VersionConsistencyTest extends TestCase
     {
         $version = $this->first('/^\s*\*\s*Version:\s*(\S+)/m', 'bluefairy-antispam.php');
 
-        $this->assertSame($version, $this->first("/define\('BFAS_VERSION', '([^']+)'\)/", 'bluefairy-antispam.php'), 'BFAS_VERSION');
+        $this->assertSame($version, $this->first("/define\(\s*'BFAS_VERSION',\s*'([^']+)'\s*\)/", 'bluefairy-antispam.php'), 'BFAS_VERSION');
         $this->assertSame($version, $this->first('/^Stable tag:\s*(\S+)/m', 'readme.txt'), 'readme.txt Stable tag');
         $this->assertSame($version, $this->first('/== Changelog ==\s*= (\S+) =/', 'readme.txt'), 'newest readme.txt changelog entry');
         $this->assertSame($version, $this->first('/== Upgrade Notice ==\s*= (\S+) =/', 'readme.txt'), 'newest readme.txt upgrade notice');

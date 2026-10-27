@@ -15,6 +15,8 @@ final class WordPressIntegrationTest extends TestCase
 {
     private Settings $settings;
     private WordPressIntegration $integration;
+    private bool $sfs = false;
+    private bool $timetrap = true;
 
     protected function setUp(): void
     {
@@ -29,10 +31,12 @@ final class WordPressIntegrationTest extends TestCase
 
         $settings = $this->createMock(Settings::class);
         $settings->method('get')->willReturnCallback(
-            static fn (string $key, mixed $default = null): mixed => match ($key) {
-                'honeypot_enabled', 'timetrap_enabled' => true,
+            fn (string $key, mixed $default = null): mixed => match ($key) {
+                'honeypot_enabled' => true,
+                'timetrap_enabled' => $this->timetrap,
                 'min_time_seconds' => 3,
-                'sfs_enabled' => false,
+                'sfs_enabled' => $this->sfs,
+                'sfs_check_threshold' => 1,
                 default => $default,
             }
         );
@@ -48,7 +52,7 @@ final class WordPressIntegrationTest extends TestCase
     protected function tearDown(): void
     {
         $_POST = [];
-        unset($_SERVER['REMOTE_ADDR'], $GLOBALS['bfas_test_hooks'], $GLOBALS['bfas_test_posts'], $GLOBALS['bfas_test_rest']);
+        unset($_SERVER['REMOTE_ADDR'], $GLOBALS['bfas_test_hooks'], $GLOBALS['bfas_test_posts'], $GLOBALS['bfas_test_rest'], $GLOBALS['bfas_test_transients'], $GLOBALS['bfas_test_logged_in']);
     }
 
     /**
@@ -146,5 +150,110 @@ final class WordPressIntegrationTest extends TestCase
     {
         $_POST = ['bfas_tk_wp_comment' => $this->aged_token('wp_comment')];
         $this->assertSame(1, $this->integration->validate_comment(1, $this->review(20, 'comment')));
+    }
+
+    // -------------------------------------------------------------------------
+    // Core comments API (/wp/v2/comments) from a logged-out visitor
+    // -------------------------------------------------------------------------
+
+    /**
+     * Run validate_comment() the way core's comments controller does: it fires
+     * rest_preprocess_comment with the request, then wp_allow_comment() runs
+     * pre_comment_approved.
+     *
+     * @param array<string, mixed> $params
+     */
+    private function core_api_comment(array $params, mixed $approved = 1, int $post_id = 20): mixed
+    {
+        $GLOBALS['bfas_test_rest'] = true;
+        $comment = ['comment_post_ID' => $post_id, 'comment_type' => 'comment', 'comment_author_email' => 'sam@example.com'];
+        $this->integration->remember_core_rest_comment($comment, new \WP_REST_Request($params));
+        return $this->integration->validate_comment($approved, $comment);
+    }
+
+    public function test_register_hooks_the_core_comments_api_request(): void
+    {
+        $this->integration->register();
+        $this->assertContains([$this->integration, 'remember_core_rest_comment'], $GLOBALS['bfas_test_hooks']['rest_preprocess_comment'] ?? []);
+    }
+
+    public function test_remembering_the_request_returns_the_comment_unchanged(): void
+    {
+        $comment = ['comment_content' => 'Hello'];
+        $this->assertSame($comment, $this->integration->remember_core_rest_comment($comment, new \WP_REST_Request([])));
+    }
+
+    public function test_an_api_comment_without_a_token_is_held_for_moderation_not_refused(): void
+    {
+        $this->assertSame(0, $this->core_api_comment(['content' => 'Nice post']));
+    }
+
+    public function test_an_api_comment_core_already_marked_spam_stays_spam(): void
+    {
+        $this->assertSame('spam', $this->core_api_comment(['content' => 'x'], 'spam'));
+    }
+
+    public function test_an_api_comment_with_a_valid_token_keeps_cores_decision(): void
+    {
+        $this->assertSame(1, $this->core_api_comment(['bfas_tk_wp_comment' => $this->aged_token('wp_comment')]));
+    }
+
+    public function test_an_api_comment_with_a_bad_token_is_refused_with_403(): void
+    {
+        $result = $this->core_api_comment(['bfas_tk_wp_comment' => 'not-a-token']);
+        $this->assertInstanceOf(\WP_Error::class, $result);
+        $this->assertSame('bfas_spam', $result->get_error_code());
+        $this->assertSame(['status' => 403], $result->get_error_data());
+    }
+
+    public function test_an_api_comment_that_fills_the_honeypot_is_refused(): void
+    {
+        $hp = (new Honeypot($this->settings))->field_name('wp_comment');
+        $this->assertInstanceOf(\WP_Error::class, $this->core_api_comment([$hp => 'http://spam.example']));
+    }
+
+    public function test_an_api_comment_from_a_listed_spammer_is_refused(): void
+    {
+        $this->sfs = true;
+        $GLOBALS['bfas_test_transients']['bfas_sfs_' . substr(md5('203.0.113.9sam@example.com'), 0, 12)] = 1;
+        $this->assertInstanceOf(\WP_Error::class, $this->core_api_comment(['content' => 'x']));
+    }
+
+    public function test_an_api_comment_from_a_clean_address_with_sfs_on_is_held(): void
+    {
+        $this->sfs = true;
+        $GLOBALS['bfas_test_transients']['bfas_sfs_' . substr(md5('203.0.113.9sam@example.com'), 0, 12)] = 0;
+        $this->assertSame(0, $this->core_api_comment(['content' => 'x']));
+    }
+
+    public function test_with_the_time_trap_off_an_api_comment_without_a_token_is_not_held(): void
+    {
+        $this->timetrap = false;
+        $this->assertSame(1, $this->core_api_comment(['content' => 'x']));
+    }
+
+    public function test_the_remembered_request_is_used_once(): void
+    {
+        $this->assertSame(0, $this->core_api_comment(['content' => 'x']));
+        // The next comment in the same request is not a core API comment: a
+        // recipe review without its token is still refused.
+        $this->assertInstanceOf(\WP_Error::class, $this->integration->validate_comment(0, $this->review()));
+    }
+
+    public function test_a_logged_in_api_comment_still_uses_up_the_remembered_request(): void
+    {
+        $GLOBALS['bfas_test_logged_in'] = true;
+        $this->assertSame(1, $this->core_api_comment(['content' => 'x']));
+        $GLOBALS['bfas_test_logged_in'] = false;
+        // Nothing left over: a recipe review without its token is refused, not held.
+        $this->assertInstanceOf(\WP_Error::class, $this->integration->validate_comment(0, $this->review()));
+    }
+
+    public function test_outside_rest_a_remembered_request_is_ignored(): void
+    {
+        $this->integration->remember_core_rest_comment([], new \WP_REST_Request(['content' => 'x']));
+        $GLOBALS['bfas_test_rest'] = false;
+        $this->expectException(\BfasTestDied::class);
+        $this->integration->validate_comment(1, $this->review(20, 'comment'));
     }
 }
