@@ -12,3 +12,5 @@ CHANGELOG.md
 README.md
 blueprint.json
 phpstan.neon
+/.github
+/SECURITY.md
