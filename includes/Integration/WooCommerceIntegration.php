@@ -1,4 +1,10 @@
 <?php
+/**
+ * Hooks into WooCommerce forms: reviews, My Account registration, shortcode checkout and Block checkout.
+ *
+ * @package BlueFairy\AntiSpam
+ */
+
 declare(strict_types=1);
 
 namespace BlueFairy\AntiSpam\Integration;
@@ -17,222 +23,256 @@ use BlueFairy\AntiSpam\Traps\TimeTrap;
  * Check order: honeypot → time trap → SFS (short-circuit on first failure).
  * All checks bypass logged-in users.
  */
-class WooCommerceIntegration
-{
-    private Logger      $logger;
-    private Honeypot    $honeypot;
-    private TimeTrap    $timetrap;
-    private SfsClient   $sfs_client;
-    private SfsReporter $sfs_reporter;
+class WooCommerceIntegration {
 
-    public function __construct(Settings $settings, Logger $logger)
-    {
-        $this->logger       = $logger;
-        $this->honeypot     = new Honeypot($settings);
-        $this->timetrap     = new TimeTrap($settings);
-        $this->sfs_client   = new SfsClient($settings);
-        $this->sfs_reporter = new SfsReporter($settings, $logger);
-    }
+	/**
+	 * Block-event logger.
+	 *
+	 * @var Logger
+	 */
+	private Logger $logger;
 
-    /**
-     * Register all WooCommerce hooks.
-     */
-    public function register(): void
-    {
-        // Product reviews — use comment_form action (fired by WC's call to comment_form()),
-        // guarded with is_product() so it only fires on product pages.
-        add_action('comment_form', [$this, 'render_review_fields']);
+	/**
+	 * Honeypot trap.
+	 *
+	 * @var Honeypot
+	 */
+	private Honeypot $honeypot;
 
-        // My Account registration.
-        add_action('woocommerce_register_form', [$this, 'render_wc_register_fields']);
-        add_filter('woocommerce_registration_errors', [$this, 'validate_wc_registration'], 10, 3);
+	/**
+	 * Time trap.
+	 *
+	 * @var TimeTrap
+	 */
+	private TimeTrap $timetrap;
 
-        // Shortcode checkout — woocommerce_after_order_notes fires inside <form> in form-shipping.php.
-        add_action('woocommerce_after_order_notes', [$this, 'render_checkout_fields']);
-        add_action('woocommerce_checkout_process', [$this, 'validate_checkout']);
+	/**
+	 * Stop Forum Spam lookup client.
+	 *
+	 * @var SfsClient
+	 */
+	private SfsClient $sfs_client;
 
-        // Block checkout (Store API).
-        add_action('woocommerce_store_api_checkout_order_processed', [$this, 'validate_block_checkout']);
-    }
+	/**
+	 * Stop Forum Spam reporter.
+	 *
+	 * @var SfsReporter
+	 */
+	private SfsReporter $sfs_reporter;
 
-    // -------------------------------------------------------------------------
-    // Product reviews
-    // -------------------------------------------------------------------------
+	/**
+	 * Constructor.
+	 *
+	 * @param Settings $settings Plugin settings.
+	 * @param Logger   $logger   Block-event logger.
+	 */
+	public function __construct( Settings $settings, Logger $logger ) {
+		$this->logger       = $logger;
+		$this->honeypot     = new Honeypot( $settings );
+		$this->timetrap     = new TimeTrap( $settings );
+		$this->sfs_client   = new SfsClient( $settings );
+		$this->sfs_reporter = new SfsReporter( $settings, $logger );
+	}
 
-    /**
-     * Render trap fields inside the WooCommerce review form.
-     * Fires on the comment_form action; only runs on product pages.
-     */
-    public function render_review_fields(): void
-    {
-        if (! function_exists('is_product') || ! is_product()) {
-            return;
-        }
+	/**
+	 * Register all WooCommerce hooks.
+	 */
+	public function register(): void {
+		// Product reviews — use comment_form action (fired by WC's call to comment_form()),
+		// guarded with is_product() so it only fires on product pages.
+		add_action( 'comment_form', [ $this, 'render_review_fields' ] );
 
-        $this->honeypot->render_field('wc_review');
-        $this->timetrap->render_fields('wc_review');
-    }
+		// My Account registration.
+		add_action( 'woocommerce_register_form', [ $this, 'render_wc_register_fields' ] );
+		add_filter( 'woocommerce_registration_errors', [ $this, 'validate_wc_registration' ], 10, 3 );
 
-    // -------------------------------------------------------------------------
-    // My Account registration
-    // -------------------------------------------------------------------------
+		// Shortcode checkout — woocommerce_after_order_notes fires inside <form> in form-shipping.php.
+		add_action( 'woocommerce_after_order_notes', [ $this, 'render_checkout_fields' ] );
+		add_action( 'woocommerce_checkout_process', [ $this, 'validate_checkout' ] );
 
-    /**
-     * Render trap fields inside the WooCommerce My Account registration form.
-     */
-    public function render_wc_register_fields(): void
-    {
-        $this->honeypot->render_field('wc_register');
-        $this->timetrap->render_fields('wc_register');
-    }
+		// Block checkout (Store API).
+		add_action( 'woocommerce_store_api_checkout_order_processed', [ $this, 'validate_block_checkout' ] );
+	}
 
-    /**
-     * Validate a WooCommerce My Account registration submission.
-     *
-     * @param \WP_Error $errors
-     * @param string    $username
-     * @param string    $email
-     */
-    public function validate_wc_registration(\WP_Error $errors, string $username, string $email): \WP_Error
-    {
-        if (is_user_logged_in()) {
-            return $errors;
-        }
+	// -------------------------------------------------------------------------
+	// Product reviews
+	// -------------------------------------------------------------------------
 
-        $ip        = $this->get_ip();
-        $spam_trap = $this->check_spam('wc_register', $ip, $email);
+	/**
+	 * Render trap fields inside the WooCommerce review form.
+	 * Fires on the comment_form action; only runs on product pages.
+	 */
+	public function render_review_fields(): void {
+		if ( ! function_exists( 'is_product' ) || ! is_product() ) {
+			return;
+		}
 
-        if ($spam_trap !== null) {
-            $this->record_block($spam_trap, 'wc_register', $ip, $email);
-            $errors->add(
-                'bfas_spam',
-                __('<strong>Error:</strong> Your registration was blocked as spam. If this is wrong, please contact us.', 'bluefairy-antispam')
-            );
-        }
+		$this->honeypot->render_field( 'wc_review' );
+		$this->timetrap->render_fields( 'wc_review' );
+	}
 
-        return $errors;
-    }
+	// -------------------------------------------------------------------------
+	// My Account registration
+	// -------------------------------------------------------------------------
 
-    // -------------------------------------------------------------------------
-    // Shortcode checkout
-    // -------------------------------------------------------------------------
+	/**
+	 * Render trap fields inside the WooCommerce My Account registration form.
+	 */
+	public function render_wc_register_fields(): void {
+		$this->honeypot->render_field( 'wc_register' );
+		$this->timetrap->render_fields( 'wc_register' );
+	}
 
-    /**
-     * Render trap fields at the end of the shortcode checkout form.
-     */
-    public function render_checkout_fields(): void
-    {
-        if (is_user_logged_in()) {
-            return;
-        }
+	/**
+	 * Validate a WooCommerce My Account registration submission.
+	 *
+	 * @param \WP_Error $errors   Current validation errors.
+	 * @param string    $username Submitted username.
+	 * @param string    $email    Submitted e-mail address.
+	 */
+	public function validate_wc_registration( \WP_Error $errors, string $username, string $email ): \WP_Error {
+		if ( is_user_logged_in() ) {
+			return $errors;
+		}
 
-        $this->honeypot->render_field('wc_checkout');
-        $this->timetrap->render_fields('wc_checkout');
-    }
+		$ip        = $this->get_ip();
+		$spam_trap = $this->check_spam( 'wc_register', $ip, $email );
 
-    /**
-     * Validate the shortcode checkout submission.
-     * Adds a WooCommerce notice on failure (does not die).
-     */
-    public function validate_checkout(): void
-    {
-        if (is_user_logged_in()) {
-            return;
-        }
+		if ( null !== $spam_trap ) {
+			$this->record_block( $spam_trap, 'wc_register', $ip, $email );
+			$errors->add(
+				'bfas_spam',
+				__( '<strong>Error:</strong> Your registration was blocked as spam. If this is wrong, please contact us.', 'bluefairy-antispam' )
+			);
+		}
 
-        $ip    = $this->get_ip();
-        $email = isset($_POST['billing_email']) ? sanitize_email(wp_unslash((string) $_POST['billing_email'])) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		return $errors;
+	}
 
-        $spam_trap = $this->check_spam('wc_checkout', $ip, $email);
+	// -------------------------------------------------------------------------
+	// Shortcode checkout
+	// -------------------------------------------------------------------------
 
-        if ($spam_trap !== null) {
-            $this->record_block($spam_trap, 'wc_checkout', $ip, $email);
-            wc_add_notice(
-                __('Your order was blocked as spam. If this is wrong, please contact us.', 'bluefairy-antispam'),
-                'error'
-            );
-        }
-    }
+	/**
+	 * Render trap fields at the end of the shortcode checkout form.
+	 */
+	public function render_checkout_fields(): void {
+		if ( is_user_logged_in() ) {
+			return;
+		}
 
-    // -------------------------------------------------------------------------
-    // Block checkout (Store API)
-    // -------------------------------------------------------------------------
+		$this->honeypot->render_field( 'wc_checkout' );
+		$this->timetrap->render_fields( 'wc_checkout' );
+	}
 
-    /**
-     * Validate a WooCommerce Block checkout order.
-     * Throws a RouteException (WC Store API mechanism) on failure.
-     *
-     * @param \WC_Order $order
-     */
-    public function validate_block_checkout(\WC_Order $order): void
-    {
-        if (is_user_logged_in()) {
-            return;
-        }
+	/**
+	 * Validate the shortcode checkout submission.
+	 * Adds a WooCommerce notice on failure (does not die).
+	 */
+	public function validate_checkout(): void {
+		if ( is_user_logged_in() ) {
+			return;
+		}
 
-        $ip    = $this->get_ip();
-        $email = $order->get_billing_email();
+		$ip    = $this->get_ip();
+		$email = isset( $_POST['billing_email'] ) ? sanitize_email( wp_unslash( (string) $_POST['billing_email'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 
-        // Block checkout sends JSON — POST-based trap fields are not available.
-        // Apply SFS check only.
-        $spam_trap = $this->sfs_client->is_spammer($ip, $email) ? 'sfs' : null;
+		$spam_trap = $this->check_spam( 'wc_checkout', $ip, $email );
 
-        if ($spam_trap !== null) {
-            $this->record_block($spam_trap, 'wc_checkout_block', $ip, $email);
+		if ( null !== $spam_trap ) {
+			$this->record_block( $spam_trap, 'wc_checkout', $ip, $email );
+			wc_add_notice(
+				__( 'Your order was blocked as spam. If this is wrong, please contact us.', 'bluefairy-antispam' ),
+				'error'
+			);
+		}
+	}
 
-            if (class_exists(\Automattic\WooCommerce\StoreApi\Exceptions\RouteException::class)) {
-                throw new \Automattic\WooCommerce\StoreApi\Exceptions\RouteException(
-                    'bfas_spam',
-                    esc_html__('Your order was blocked as spam. If this is wrong, please contact us.', 'bluefairy-antispam'),
-                    400
-                );
-            }
-        }
-    }
+	// -------------------------------------------------------------------------
+	// Block checkout (Store API)
+	// -------------------------------------------------------------------------
 
-    // -------------------------------------------------------------------------
-    // Shared helpers
-    // -------------------------------------------------------------------------
+	/**
+	 * Validate a WooCommerce Block checkout order.
+	 * Throws a RouteException (WC Store API mechanism) on failure.
+	 *
+	 * @param \WC_Order $order The order being placed.
+	 * @throws \Automattic\WooCommerce\StoreApi\Exceptions\RouteException When the order is spam.
+	 */
+	public function validate_block_checkout( \WC_Order $order ): void {
+		if ( is_user_logged_in() ) {
+			return;
+		}
 
-    /**
-     * Run all checks in order: honeypot → time trap → SFS.
-     * Returns the trap name that fired, or null if clean.
-     */
-    private function check_spam(string $form_type, string $ip, string $email): ?string
-    {
-        if ($this->honeypot->is_spam($_POST, $form_type)) { // phpcs:ignore WordPress.Security.NonceVerification
-            return 'honeypot';
-        }
+		$ip    = $this->get_ip();
+		$email = $order->get_billing_email();
 
-        if ($this->timetrap->is_spam($_POST, $form_type)) { // phpcs:ignore WordPress.Security.NonceVerification
-            return 'timetrap';
-        }
+		// Block checkout sends JSON — POST-based trap fields are not available.
+		// Apply SFS check only.
+		$spam_trap = $this->sfs_client->is_spammer( $ip, $email ) ? 'sfs' : null;
 
-        if ($this->sfs_client->is_spammer($ip, $email)) {
-            return 'sfs';
-        }
+		if ( null !== $spam_trap ) {
+			$this->record_block( $spam_trap, 'wc_checkout_block', $ip, $email );
 
-        return null;
-    }
+			if ( class_exists( \Automattic\WooCommerce\StoreApi\Exceptions\RouteException::class ) ) {
+				throw new \Automattic\WooCommerce\StoreApi\Exceptions\RouteException(
+					'bfas_spam',
+					esc_html__( 'Your order was blocked as spam. If this is wrong, please contact us.', 'bluefairy-antispam' ),
+					400
+				);
+			}
+		}
+	}
 
-    /**
-     * Log the block and optionally schedule an SFS report.
-     */
-    private function record_block(string $trap, string $form, string $ip, string $email): void
-    {
-        $log_id = $this->logger->log($trap, $form, $ip, $email);
+	// -------------------------------------------------------------------------
+	// Shared helpers
+	// -------------------------------------------------------------------------
 
-        if ($trap === 'sfs') {
-            $this->sfs_reporter->maybe_schedule_report($ip, $email, $log_id);
-        }
-    }
+	/**
+	 * Run all checks in order: honeypot → time trap → SFS.
+	 * Returns the trap name that fired, or null if clean.
+	 *
+	 * @param string $form_type Form identifier, such as wp_comment or wc_review.
+	 * @param string $ip        Visitor IP address.
+	 * @param string $email     Submitted e-mail address.
+	 */
+	private function check_spam( string $form_type, string $ip, string $email ): ?string {
+		if ( $this->honeypot->is_spam( $_POST, $form_type ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+			return 'honeypot';
+		}
 
-    /**
-     * Get the visitor's IP address.
-     * Trusts only REMOTE_ADDR — never X-Forwarded-For without explicit proxy config.
-     */
-    private function get_ip(): string
-    {
-        return sanitize_text_field(wp_unslash((string) ($_SERVER['REMOTE_ADDR'] ?? '')));
-    }
+		if ( $this->timetrap->is_spam( $_POST, $form_type ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+			return 'timetrap';
+		}
+
+		if ( $this->sfs_client->is_spammer( $ip, $email ) ) {
+			return 'sfs';
+		}
+
+		return null;
+	}
+
+	/**
+	 * Log the block and optionally schedule an SFS report.
+	 *
+	 * @param string $trap  Name of the trap that fired.
+	 * @param string $form  Form identifier recorded in the log.
+	 * @param string $ip    Visitor IP address.
+	 * @param string $email Submitted e-mail address.
+	 */
+	private function record_block( string $trap, string $form, string $ip, string $email ): void {
+		$log_id = $this->logger->log( $trap, $form, $ip, $email );
+
+		if ( 'sfs' === $trap ) {
+			$this->sfs_reporter->maybe_schedule_report( $ip, $email, $log_id );
+		}
+	}
+
+	/**
+	 * Get the visitor's IP address.
+	 * Trusts only REMOTE_ADDR — never X-Forwarded-For without explicit proxy config.
+	 */
+	private function get_ip(): string {
+		return sanitize_text_field( wp_unslash( (string) ( $_SERVER['REMOTE_ADDR'] ?? '' ) ) );
+	}
 }

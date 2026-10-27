@@ -16,7 +16,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 if (! function_exists('is_user_logged_in')) {
     function is_user_logged_in(): bool
     {
-        return false;
+        return (bool) ($GLOBALS['bfas_test_logged_in'] ?? false);
     }
 }
 
@@ -188,10 +188,29 @@ if (! class_exists('WP_Error')) {
     }
 }
 
+if (! class_exists('WP_REST_Request')) {
+    /**
+     * Minimal stand-in for core's request: params as one merged array, as
+     * WP_REST_Request::get_params() returns body, JSON and query values.
+     *
+     * @template T of array
+     */
+    class WP_REST_Request
+    {
+        /** @param array<string, mixed> $params */
+        public function __construct(private array $params = []) {}
+
+        /** @return array<string, mixed> */
+        public function get_params(): array { return $this->params; }
+
+        public function get_param(string $key): mixed { return $this->params[$key] ?? null; }
+    }
+}
+
 if (! function_exists('get_transient')) {
     function get_transient(string $transient): mixed
     {
-        return false;
+        return $GLOBALS['bfas_test_transients'][$transient] ?? false;
     }
 }
 

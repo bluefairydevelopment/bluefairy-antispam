@@ -1,4 +1,10 @@
 <?php
+/**
+ * Stop Forum Spam API client.
+ *
+ * @package BlueFairy\AntiSpam
+ */
+
 declare(strict_types=1);
 
 namespace BlueFairy\AntiSpam\Sfs;
@@ -14,73 +20,85 @@ use BlueFairy\AntiSpam\Settings;
  *   - Circuit breaker: skip after 5 consecutive HTTP failures (10-min reset)
  *   - Reset circuit breaker on success
  */
-class SfsClient
-{
-    private Settings $settings;
+class SfsClient {
 
-    public function __construct(Settings $settings)
-    {
-        $this->settings = $settings;
-    }
+	/**
+	 * Plugin settings.
+	 *
+	 * @var Settings
+	 */
+	private Settings $settings;
 
-    /**
-     * Check whether an IP / email combination is a known spammer.
-     *
-     * Returns false (not spam) if SFS is disabled or the circuit breaker is open.
-     *
-     * @param string $ip    Visitor IP address.
-     * @param string $email Visitor email address (raw — hashed only for cache key).
-     */
-    public function is_spammer(string $ip, string $email): bool
-    {
-        if (! (bool) $this->settings->get('sfs_enabled', false)) {
-            return false;
-        }
+	/**
+	 * Constructor.
+	 *
+	 * @param Settings $settings Plugin settings.
+	 */
+	public function __construct( Settings $settings ) {
+		$this->settings = $settings;
+	}
 
-        $transient_key = 'bfas_sfs_' . substr(md5($ip . $email), 0, 12);
-        $cached        = get_transient($transient_key);
+	/**
+	 * Check whether an IP / email combination is a known spammer.
+	 *
+	 * Returns false (not spam) if SFS is disabled or the circuit breaker is open.
+	 *
+	 * @param string $ip    Visitor IP address.
+	 * @param string $email Visitor email address (raw — hashed only for cache key).
+	 */
+	public function is_spammer( string $ip, string $email ): bool {
+		if ( ! (bool) $this->settings->get( 'sfs_enabled', false ) ) {
+			return false;
+		}
 
-        if ($cached !== false) {
-            return (bool) $cached;
-        }
+		$transient_key = 'bfas_sfs_' . substr( md5( $ip . $email ), 0, 12 );
+		$cached        = get_transient( $transient_key );
 
-        // Circuit breaker — skip if >= 5 consecutive failures.
-        if ((int) get_transient('bfas_sfs_failures') >= 5) {
-            return false;
-        }
+		if ( false !== $cached ) {
+			return (bool) $cached;
+		}
 
-        $url = add_query_arg(
-            ['ip' => $ip, 'email' => $email, 'f' => 'json'],
-            'https://api.stopforumspam.org/api'
-        );
+		// Circuit breaker — skip if >= 5 consecutive failures.
+		if ( (int) get_transient( 'bfas_sfs_failures' ) >= 5 ) {
+			return false;
+		}
 
-        $response = wp_remote_get($url, ['timeout' => 5]);
+		$url = add_query_arg(
+			[
+				'ip'    => $ip,
+				'email' => $email,
+				'f'     => 'json',
+			],
+			'https://api.stopforumspam.org/api'
+		);
 
-        if (is_wp_error($response)) {
-            $failures = (int) get_transient('bfas_sfs_failures');
-            set_transient('bfas_sfs_failures', $failures + 1, 600);
+		$response = wp_remote_get( $url, [ 'timeout' => 5 ] );
 
-            return false;
-        }
+		if ( is_wp_error( $response ) ) {
+			$failures = (int) get_transient( 'bfas_sfs_failures' );
+			set_transient( 'bfas_sfs_failures', $failures + 1, 600 );
 
-        $body = json_decode(wp_remote_retrieve_body($response), true);
-        if (! is_array($body)) {
-            $failures = (int) get_transient('bfas_sfs_failures');
-            set_transient('bfas_sfs_failures', $failures + 1, 600);
+			return false;
+		}
 
-            return false;
-        }
+		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+		if ( ! is_array( $body ) ) {
+			$failures = (int) get_transient( 'bfas_sfs_failures' );
+			set_transient( 'bfas_sfs_failures', $failures + 1, 600 );
 
-        $threshold  = (int) $this->settings->get('sfs_check_threshold', 1);
-        $ip_conf    = (float) ($body['ip']['confidence'] ?? 0);
-        $email_conf = (float) ($body['email']['confidence'] ?? 0);
-        $is_spammer = $ip_conf >= $threshold || $email_conf >= $threshold;
+			return false;
+		}
 
-        set_transient($transient_key, $is_spammer ? 1 : 0, $is_spammer ? 604800 : 3600);
+		$threshold  = (int) $this->settings->get( 'sfs_check_threshold', 1 );
+		$ip_conf    = (float) ( $body['ip']['confidence'] ?? 0 );
+		$email_conf = (float) ( $body['email']['confidence'] ?? 0 );
+		$is_spammer = $ip_conf >= $threshold || $email_conf >= $threshold;
 
-        // Reset circuit breaker on any successful, parseable API response.
-        delete_transient('bfas_sfs_failures');
+		set_transient( $transient_key, $is_spammer ? 1 : 0, $is_spammer ? 604800 : 3600 );
 
-        return $is_spammer;
-    }
+		// Reset circuit breaker on any successful, parseable API response.
+		delete_transient( 'bfas_sfs_failures' );
+
+		return $is_spammer;
+	}
 }

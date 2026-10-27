@@ -1,6 +1,4 @@
 <?php
-declare(strict_types=1);
-
 /**
  * Plugin Name:       BlueFairy AntiSpam
  * Plugin URI:        https://wordpress.bluefairydevelopment.com/anti-spam/
@@ -13,40 +11,55 @@ declare(strict_types=1);
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       bluefairy-antispam
+ *
+ * @package BlueFairy\AntiSpam
  */
+
+declare(strict_types=1);
 
 namespace BlueFairy\AntiSpam;
 
-if (! defined('ABSPATH')) {
-    exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
-define('BFAS_VERSION', '1.2.0');
-define('BFAS_FILE', __FILE__);
-define('BFAS_DIR', plugin_dir_path(__FILE__));
-define('BFAS_URL', plugin_dir_url(__FILE__));
+define( 'BFAS_VERSION', '1.2.0' );
+define( 'BFAS_FILE', __FILE__ );
+define( 'BFAS_DIR', plugin_dir_path( __FILE__ ) );
+define( 'BFAS_URL', plugin_dir_url( __FILE__ ) );
 
 // Autoloader.
-spl_autoload_register(static function (string $class): void {
-    if (str_starts_with($class, 'BlueFairy\\AntiSpam\\')) {
-        $relative = str_replace('BlueFairy\\AntiSpam\\', '', $class);
-        $path = BFAS_DIR . 'includes/' . str_replace('\\', '/', $relative) . '.php';
-        if (file_exists($path)) {
-            require_once $path;
-        }
-    }
-});
+spl_autoload_register(
+	static function ( string $class_name ): void {
+		if ( str_starts_with( $class_name, 'BlueFairy\\AntiSpam\\' ) ) {
+			$relative = str_replace( 'BlueFairy\\AntiSpam\\', '', $class_name );
+			$path     = BFAS_DIR . 'includes/' . str_replace( '\\', '/', $relative ) . '.php';
+			if ( file_exists( $path ) ) {
+				require_once $path;
+			}
+		}
+	}
+);
 
 // Activation / deactivation hooks.
-register_activation_hook(__FILE__, static function (): void {
-    ( new Installer() )->activate();
-});
+register_activation_hook(
+	__FILE__,
+	static function (): void {
+		( new Installer() )->activate();
+	}
+);
 
-register_deactivation_hook(__FILE__, static function (): void {
-    ( new Installer() )->deactivate();
-});
+register_deactivation_hook(
+	__FILE__,
+	static function (): void {
+		( new Installer() )->deactivate();
+	}
+);
 
 // Boot the plugin after plugins are loaded so WooCommerce detection works.
-add_action('plugins_loaded', static function (): void {
-    Plugin::instance()->boot();
-});
+add_action(
+	'plugins_loaded',
+	static function (): void {
+		Plugin::instance()->boot();
+	}
+);

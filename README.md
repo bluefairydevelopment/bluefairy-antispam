@@ -68,19 +68,23 @@ SFS API key stored separately in `bfas_sfs_api_key` (non-autoloaded option).
 
 ---
 
-## BlueFairy Forms Integration (coming soon)
+## Comments through the REST API
 
-The plugin exposes a `bfas_check_submission` filter for integration with BlueFairy Forms:
+When a site lets logged-out visitors comment through `/wp/v2/comments` (the `rest_allow_anonymous_comments` filter), those comments carry no form token. A filled honeypot, a forged, too-fast or expired token, or a Stop Forum Spam listing still refuses them with a 403 JSON error. A comment that passes but has no token is held for moderation, never published straight away.
+
+---
+
+## Protecting your own forms
 
 ```php
-$result = apply_filters( 'bfas_check_submission', null, [
-    'form_type' => 'my_custom_form',
-    'ip'        => $ip,
-    'email'     => $email,
-    'post_data' => $_POST,
-] );
-// $result = null (clean) or trap name string (spam)
+// Inside your <form>:
+do_action( 'bluefairy_antispam_render_fields', 'my_custom_form' );
+
+// When it is submitted:
+$is_spam = apply_filters( 'bluefairy_antispam_check', false, $_POST, 'my_custom_form', $ip, $email );
 ```
+
+The filter runs the honeypot and time-trap checks and returns `true` for spam; a refusal is logged. Use the same form type name in both calls.
 
 ---
 
@@ -88,8 +92,9 @@ $result = apply_filters( 'bfas_check_submission', null, [
 
 ```bash
 composer install
-vendor/bin/phpstan analyse   # PHPStan level 8
-vendor/bin/phpunit           # Unit tests
+composer phpcs               # WordPress Coding Standards (phpcs.xml.dist)
+composer phpstan             # PHPStan level 8
+composer test                # Unit tests
 ```
 
 ---

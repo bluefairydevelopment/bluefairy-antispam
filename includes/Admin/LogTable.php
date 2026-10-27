@@ -1,210 +1,220 @@
 <?php
+/**
+ * WP_List_Table implementation for the bfas_log table.
+ *
+ * @package BlueFairy\AntiSpam
+ */
+
 declare(strict_types=1);
 
 namespace BlueFairy\AntiSpam\Admin;
 
 use BlueFairy\AntiSpam\LogRepository;
 
-if (! defined('ABSPATH')) {
-    exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
-if (! class_exists('WP_List_Table')) {
-    require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
+if ( ! class_exists( 'WP_List_Table' ) ) {
+	require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
 }
 
 /**
  * WP_List_Table implementation for the bfas_log table.
  */
-class LogTable extends \WP_List_Table
-{
-    private LogRepository $repo;
+class LogTable extends \WP_List_Table {
 
-    public function __construct(LogRepository $repo)
-    {
-        parent::__construct([
-            'singular' => 'log_entry',
-            'plural'   => 'log_entries',
-            'ajax'     => false,
-        ]);
+	/**
+	 * Log table data access.
+	 *
+	 * @var LogRepository
+	 */
+	private LogRepository $repo;
 
-        $this->repo = $repo;
-    }
+	/**
+	 * Constructor.
+	 *
+	 * @param LogRepository $repo Repo.
+	 */
+	public function __construct( LogRepository $repo ) {
+		parent::__construct(
+			[
+				'singular' => 'log_entry',
+				'plural'   => 'log_entries',
+				'ajax'     => false,
+			]
+		);
 
-    /**
-     * Define table columns.
-     *
-     * @return array<string, string>
-     */
-    public function get_columns(): array
-    {
-        return [
-            'cb'           => '<input type="checkbox">',
-            'blocked_at'   => __('Date', 'bluefairy-antispam'),
-            'trap'         => __('Trap', 'bluefairy-antispam'),
-            'form'         => __('Form', 'bluefairy-antispam'),
-            'ip'           => __('IP Address', 'bluefairy-antispam'),
-            'reported_sfs' => __('Reported to SFS', 'bluefairy-antispam'),
-        ];
-    }
+		$this->repo = $repo;
+	}
 
-    /**
-     * Define sortable columns.
-     *
-     * @return array<string, array{string, bool}>
-     */
-    public function get_sortable_columns(): array
-    {
-        return [
-            'blocked_at' => ['blocked_at', true],
-            'trap'       => ['trap', false],
-        ];
-    }
+	/**
+	 * Define table columns.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_columns(): array {
+		return [
+			'cb'           => '<input type="checkbox">',
+			'blocked_at'   => __( 'Date', 'bluefairy-antispam' ),
+			'trap'         => __( 'Trap', 'bluefairy-antispam' ),
+			'form'         => __( 'Form', 'bluefairy-antispam' ),
+			'ip'           => __( 'IP Address', 'bluefairy-antispam' ),
+			'reported_sfs' => __( 'Reported to SFS', 'bluefairy-antispam' ),
+		];
+	}
 
-    /**
-     * Render the checkbox column.
-     *
-     * @param array<string, mixed> $item
-     */
-    public function column_cb( $item ): string
-    {
-        return '<input type="checkbox" name="log_ids[]" value="' . absint($item['id']) . '">';
-    }
+	/**
+	 * Define sortable columns.
+	 *
+	 * @return array<string, array{string, bool}>
+	 */
+	public function get_sortable_columns(): array {
+		return [
+			'blocked_at' => [ 'blocked_at', true ],
+			'trap'       => [ 'trap', false ],
+		];
+	}
 
-    /**
-     * Default column renderer.
-     *
-     * @param array<string, mixed> $item
-     * @param string               $column_name
-     */
-    public function column_default( $item, $column_name ): string
-    {
-        return match ($column_name) {
-            'blocked_at'   => esc_html($item['blocked_at'] ?? ''),
-            'trap'         => esc_html($item['trap'] ?? ''),
-            'form'         => esc_html($item['form'] ?? ''),
-            'ip'           => esc_html($item['ip'] ?? ''),
-            'reported_sfs' => (bool) ($item['reported_sfs'] ?? false)
-                ? '<span style="color:green;">&#10003;</span>'
-                : '&mdash;',
-            default        => esc_html((string) ($item[$column_name] ?? '')),
-        };
-    }
+	/**
+	 * Render the checkbox column.
+	 *
+	 * @param array<string, mixed> $item One log row.
+	 */
+	public function column_cb( $item ): string {
+		return '<input type="checkbox" name="log_ids[]" value="' . absint( $item['id'] ) . '">';
+	}
 
-    /**
-     * Message shown when there are no items.
-     */
-    public function no_items(): void
-    {
-        esc_html_e('No spam blocked yet. Either your site is spam-free (lucky you!), or the plugin was just activated.', 'bluefairy-antispam');
-    }
+	/**
+	 * Default column renderer.
+	 *
+	 * @param array<string, mixed> $item        One log row.
+	 * @param string               $column_name Column being rendered.
+	 */
+	public function column_default( $item, $column_name ): string {
+		return match ( $column_name ) {
+			'blocked_at'   => esc_html( $item['blocked_at'] ?? '' ),
+			'trap'         => esc_html( $item['trap'] ?? '' ),
+			'form'         => esc_html( $item['form'] ?? '' ),
+			'ip'           => esc_html( $item['ip'] ?? '' ),
+			'reported_sfs' => (bool) ( $item['reported_sfs'] ?? false )
+				? '<span style="color:green;">&#10003;</span>'
+				: '&mdash;',
+			default        => esc_html( (string) ( $item[ $column_name ] ?? '' ) ),
+		};
+	}
 
-    /**
-     * Define bulk actions.
-     *
-     * @return array<string, string>
-     */
-    public function get_bulk_actions(): array
-    {
-        return [
-            'delete' => __('Delete', 'bluefairy-antispam'),
-        ];
-    }
+	/**
+	 * Message shown when there are no items.
+	 */
+	public function no_items(): void {
+		esc_html_e( 'No spam blocked yet. Either your site is spam-free (lucky you!), or the plugin was just activated.', 'bluefairy-antispam' );
+	}
 
-    /**
-     * Fetch data and configure pagination.
-     */
-    public function prepare_items(): void
-    {
-        $per_page    = 20;
-        $current     = $this->get_pagenum();
-        $orderby     = isset($_GET['orderby']) ? sanitize_key(wp_unslash($_GET['orderby'])) : 'blocked_at'; // phpcs:ignore WordPress.Security.NonceVerification
-        $order       = isset($_GET['order']) && strtoupper(sanitize_key(wp_unslash($_GET['order']))) === 'ASC' ? 'ASC' : 'DESC'; // phpcs:ignore WordPress.Security.NonceVerification
-        $trap_filter = isset($_REQUEST['trap_filter']) ? sanitize_key(wp_unslash($_REQUEST['trap_filter'])) : ''; // phpcs:ignore WordPress.Security.NonceVerification
-        $search_ip   = isset($_REQUEST['s']) ? sanitize_text_field(wp_unslash($_REQUEST['s'])) : ''; // phpcs:ignore WordPress.Security.NonceVerification
-        $sfs_only    = isset($_GET['sfs_filter']) && $_GET['sfs_filter'] === '1'; // phpcs:ignore WordPress.Security.NonceVerification
+	/**
+	 * Define bulk actions.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_bulk_actions(): array {
+		return [
+			'delete' => __( 'Delete', 'bluefairy-antispam' ),
+		];
+	}
 
-        $total = $this->repo->count($trap_filter, $search_ip, $sfs_only);
+	/**
+	 * Fetch data and configure pagination.
+	 */
+	public function prepare_items(): void {
+		$per_page    = 20;
+		$current     = $this->get_pagenum();
+		$orderby     = isset( $_GET['orderby'] ) ? sanitize_key( wp_unslash( $_GET['orderby'] ) ) : 'blocked_at'; // phpcs:ignore WordPress.Security.NonceVerification
+		$order       = isset( $_GET['order'] ) && strtoupper( sanitize_key( wp_unslash( $_GET['order'] ) ) ) === 'ASC' ? 'ASC' : 'DESC'; // phpcs:ignore WordPress.Security.NonceVerification
+		$trap_filter = isset( $_REQUEST['trap_filter'] ) ? sanitize_key( wp_unslash( $_REQUEST['trap_filter'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$search_ip   = isset( $_REQUEST['s'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['s'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$sfs_only    = isset( $_GET['sfs_filter'] ) && '1' === $_GET['sfs_filter']; // phpcs:ignore WordPress.Security.NonceVerification
 
-        $this->set_pagination_args([
-            'total_items' => $total,
-            'per_page'    => $per_page,
-            'total_pages' => (int) ceil($total / $per_page),
-        ]);
+		$total = $this->repo->count( $trap_filter, $search_ip, $sfs_only );
 
-        $this->_column_headers = [
-            $this->get_columns(),
-            [],
-            $this->get_sortable_columns(),
-        ];
+		$this->set_pagination_args(
+			[
+				'total_items' => $total,
+				'per_page'    => $per_page,
+				'total_pages' => (int) ceil( $total / $per_page ),
+			]
+		);
 
-        $this->items = $this->repo->get_rows(
-            $per_page,
-            ($current - 1) * $per_page,
-            $orderby,
-            $order,
-            $trap_filter,
-            $search_ip,
-            $sfs_only
-        );
-    }
+		$this->_column_headers = [
+			$this->get_columns(),
+			[],
+			$this->get_sortable_columns(),
+		];
 
-    /**
-     * View links for All / Reported to SFS tabs above the table.
-     *
-     * @return array<string, string>
-     */
-    public function get_views(): array
-    {
-        $total    = $this->repo->count();
-        $reported = $this->repo->count('', '', true);
+		$this->items = $this->repo->get_rows(
+			$per_page,
+			( $current - 1 ) * $per_page,
+			$orderby,
+			$order,
+			$trap_filter,
+			$search_ip,
+			$sfs_only
+		);
+	}
 
-        $sfs_active = isset($_GET['sfs_filter']) && $_GET['sfs_filter'] === '1'; // phpcs:ignore WordPress.Security.NonceVerification
+	/**
+	 * View links for All / Reported to SFS tabs above the table.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_views(): array {
+		$total    = $this->repo->count();
+		$reported = $this->repo->count( '', '', true );
 
-        $base_url = add_query_arg(['page' => 'bfas-log'], admin_url('tools.php'));
-        $all_url  = esc_url(remove_query_arg('sfs_filter', $base_url));
-        $sfs_url  = esc_url(add_query_arg('sfs_filter', '1', $base_url));
+		$sfs_active = isset( $_GET['sfs_filter'] ) && '1' === $_GET['sfs_filter']; // phpcs:ignore WordPress.Security.NonceVerification
 
-        return [
-            'all' => sprintf(
-                '<a href="%s"%s>%s <span class="count">(%s)</span></a>',
-                $all_url,
-                $sfs_active ? '' : ' class="current"',
-                esc_html__('All', 'bluefairy-antispam'),
-                number_format_i18n($total)
-            ),
-            'sfs' => sprintf(
-                '<a href="%s"%s>%s <span class="count">(%s)</span></a>',
-                $sfs_url,
-                $sfs_active ? ' class="current"' : '',
-                esc_html__('Reported to SFS', 'bluefairy-antispam'),
-                number_format_i18n($reported)
-            ),
-        ];
-    }
+		$base_url = add_query_arg( [ 'page' => 'bfas-log' ], admin_url( 'tools.php' ) );
+		$all_url  = esc_url( remove_query_arg( 'sfs_filter', $base_url ) );
+		$sfs_url  = esc_url( add_query_arg( 'sfs_filter', '1', $base_url ) );
 
-    /**
-     * Render a trap-type filter dropdown above the table.
-     *
-     * @param string $which 'top' or 'bottom'
-     */
-    public function extra_tablenav( $which ): void
-    {
-        if ($which !== 'top') {
-            return;
-        }
+		return [
+			'all' => sprintf(
+				'<a href="%s"%s>%s <span class="count">(%s)</span></a>',
+				$all_url,
+				$sfs_active ? '' : ' class="current"',
+				esc_html__( 'All', 'bluefairy-antispam' ),
+				number_format_i18n( $total )
+			),
+			'sfs' => sprintf(
+				'<a href="%s"%s>%s <span class="count">(%s)</span></a>',
+				$sfs_url,
+				$sfs_active ? ' class="current"' : '',
+				esc_html__( 'Reported to SFS', 'bluefairy-antispam' ),
+				number_format_i18n( $reported )
+			),
+		];
+	}
 
-        $trap_types = $this->repo->get_trap_types();
-        $current    = isset($_REQUEST['trap_filter']) ? sanitize_key($_REQUEST['trap_filter']) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+	/**
+	 * Render a trap-type filter dropdown above the table.
+	 *
+	 * @param string $which 'top' or 'bottom'.
+	 */
+	public function extra_tablenav( $which ): void {
+		if ( 'top' !== $which ) {
+			return;
+		}
 
-        echo '<div class="alignleft actions">';
-        echo '<select name="trap_filter">';
-        echo '<option value="">' . esc_html__('All trap types', 'bluefairy-antispam') . '</option>';
-        foreach ($trap_types as $type) {
-            echo '<option value="' . esc_attr($type) . '"' . selected($current, $type, false) . '>' . esc_html($type) . '</option>';
-        }
-        echo '</select>';
-        submit_button(__('Filter', 'bluefairy-antispam'), 'button', 'filter_action', false);
-        echo '</div>';
-    }
+		$trap_types = $this->repo->get_trap_types();
+		$current    = isset( $_REQUEST['trap_filter'] ) ? sanitize_key( $_REQUEST['trap_filter'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+
+		echo '<div class="alignleft actions">';
+		echo '<select name="trap_filter">';
+		echo '<option value="">' . esc_html__( 'All trap types', 'bluefairy-antispam' ) . '</option>';
+		foreach ( $trap_types as $type ) {
+			echo '<option value="' . esc_attr( $type ) . '"' . selected( $current, $type, false ) . '>' . esc_html( $type ) . '</option>';
+		}
+		echo '</select>';
+		submit_button( __( 'Filter', 'bluefairy-antispam' ), 'button', 'filter_action', false );
+		echo '</div>';
+	}
 }

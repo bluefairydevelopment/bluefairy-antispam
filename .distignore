@@ -4,6 +4,7 @@
 composer.json
 composer.lock
 phpunit.xml.dist
+phpcs.xml.dist
 tests/
 vendor/
 wp-org-assets/
