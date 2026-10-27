@@ -5,7 +5,7 @@ Tags: spam, anti-spam, honeypot, comments, woocommerce
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.1.4
+Stable tag: 1.2.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -98,6 +98,10 @@ No data is ever sent without your explicit opt-in.
 
 == Changelog ==
 
+= 1.2.0 =
+* Added: BlueFairy Recipes Pro recipe reviews are protected. The review form gets the honeypot and time trap, and its reviews are checked against them.
+* Fixed: a guest comment sent by a form that posts to its own REST route was always blocked, because that form never carried the token. A block inside a REST request now returns a JSON error the form can show, instead of an HTML error page.
+
 = 1.1.4 =
 * Security: WP 6.9 Abilities (get-log-entries, get-stats, get-settings) now enforce manage_options at runtime via permission_callback. Previously only the descriptive capability key was set; the API treats capability as metadata, not enforcement.
 * Security: get-settings ability strips sfs_api_key and hmac_secret from its response as defence in depth; a regression test guards this invariant.
@@ -128,6 +132,9 @@ No data is ever sent without your explicit opt-in.
 * Initial release. Honeypot, time trap, optional Stop Forum Spam integration, dashboard widget, admin log.
 
 == Upgrade Notice ==
+
+= 1.2.0 =
+Adds protection for BlueFairy Recipes Pro recipe reviews and returns a JSON error instead of an HTML page when a block happens during a REST request.
 
 = 1.1.4 =
 Security fix: WP 6.9 Abilities now enforce manage_options via permission_callback (previously only the descriptive capability key was set). Recommended upgrade for anyone on WP 6.9+.

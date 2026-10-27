@@ -138,7 +138,7 @@ final class Plugin
     private function boot_admin(): void
     {
         ( new SettingsPage($this->settings) )->register();
-        ( new LogPage($this->settings, $this->logger) )->register();
+        ( new LogPage($this->logger) )->register();
         ( new DashboardWidget($this->logger) )->register();
     }
 

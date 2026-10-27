@@ -23,7 +23,18 @@ if (! function_exists('is_user_logged_in')) {
 if (! function_exists('get_option')) {
     function get_option(string $option, mixed $default = false): mixed
     {
-        return $default;
+        $options = $GLOBALS['bfas_test_options'] ?? [];
+        return array_key_exists($option, $options) ? $options[$option] : $default;
+    }
+}
+
+if (! function_exists('add_option')) {
+    // Records every call, $autoload as given (core accepts bool|null; 'yes'/'no' are legacy).
+    function add_option(string $option, mixed $value = '', string $deprecated = '', bool|string|null $autoload = null): bool
+    {
+        $GLOBALS['bfas_test_add_options'][$option] = ['value' => $value, 'autoload' => $autoload];
+        $GLOBALS['bfas_test_options'][$option]     = $value;
+        return true;
     }
 }
 

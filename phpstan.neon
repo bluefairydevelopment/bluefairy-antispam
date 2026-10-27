@@ -7,9 +7,8 @@ parameters:
         - bluefairy-antispam.php
     bootstrapFiles:
         - vendor/php-stubs/wordpress-stubs/wordpress-stubs.php
+        - vendor/php-stubs/woocommerce-stubs/woocommerce-stubs.php
     ignoreErrors:
-        # WP_List_Table is loaded dynamically from ABSPATH; PHPStan can't follow the require_once.
-        - '#extends unknown class WP_List_Table#'
         # BFAS_URL is defined in bluefairy-antispam.php via plugin_dir_url(__FILE__) — a runtime call
         # PHPStan cannot resolve at scan time. BFAS_VERSION (literal string) is resolved via scanFiles.
         - '#Constant BFAS_URL not found#'

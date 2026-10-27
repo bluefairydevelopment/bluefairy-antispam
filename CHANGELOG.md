@@ -7,7 +7,7 @@ Versioning: Major.Minor.Patch (major = architecture shift, minor = new feature, 
 
 ---
 
-## [Unreleased]
+## [1.2.0] — 2026-10-26
 
 ### Added
 - BlueFairy Recipes Pro recipe reviews are protected: the review form gets the honeypot and time trap, and its reviews are checked against them.
