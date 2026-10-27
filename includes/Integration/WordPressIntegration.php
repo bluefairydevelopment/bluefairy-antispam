@@ -17,6 +17,13 @@ use BlueFairy\AntiSpam\Traps\TimeTrap;
  */
 class WordPressIntegration
 {
+    /**
+     * BlueFairy Recipes Pro's review form prints this action inside its form,
+     * and its comment type marks the reviews it inserts.
+     */
+    public const RECIPE_REVIEW_FIELDS_HOOK = 'bfrcp_review_form_fields';
+    public const RECIPE_REVIEW_TYPE        = 'bfrc_review';
+
     private Settings    $settings;
     private Logger      $logger;
     private Honeypot    $honeypot;
@@ -43,6 +50,9 @@ class WordPressIntegration
         add_action('comment_form', [$this, 'render_comment_fields']);
         add_filter('pre_comment_approved', [$this, 'validate_comment'], 10, 2);
         add_filter('rest_pre_insert_comment', [$this, 'validate_rest_comment'], 10, 2);
+
+        // BlueFairy Recipes Pro review form (posted to its own REST route, inserted by wp_new_comment()).
+        add_action(self::RECIPE_REVIEW_FIELDS_HOOK, [$this, 'render_recipe_review_fields']);
 
         // Registration form.
         add_action('register_form', [$this, 'render_register_fields']);
@@ -96,11 +106,20 @@ class WordPressIntegration
     }
 
     /**
+     * Render honeypot + time-trap fields in a BlueFairy Recipes Pro review form.
+     */
+    public function render_recipe_review_fields(): void
+    {
+        $this->honeypot->render_field('recipe_review');
+        $this->timetrap->render_fields('recipe_review');
+    }
+
+    /**
      * Validate a traditional (non-REST) comment submission.
      *
      * @param int|string           $approved  Current approval status.
      * @param array<string, mixed> $comment_data Comment data array.
-     * @return int|string
+     * @return int|string|\WP_Error
      */
     public function validate_comment(mixed $approved, array $comment_data): mixed
     {
@@ -111,15 +130,27 @@ class WordPressIntegration
         $ip    = $this->get_ip();
         $email = isset($comment_data['comment_author_email']) ? (string) $comment_data['comment_author_email'] : '';
 
-        // WC reviews are submitted on product pages — use the wc_review form type
-        // so the correct token field (bfas_tk_wc_review) is checked.
-        $post      = get_post($comment_data['comment_post_ID'] ?? 0);
-        $form_type = ($post && $post->post_type === 'product') ? 'wc_review' : 'wp_comment';
+        $form_type = $this->comment_form_type($comment_data);
 
         $spam_trap = $this->check_spam($form_type, $ip, $email);
 
         if ($spam_trap !== null) {
             $this->record_block($spam_trap, $form_type, $ip, $email);
+
+            // Inside a REST request (a form that posts to its own route and inserts
+            // with wp_new_comment()), refuse with a WP_Error: wp_new_comment() hands
+            // it back to the route, which answers in JSON. wp_die() would send an
+            // HTML page to a script expecting JSON.
+            if ($this->is_rest_request()) {
+                return new \WP_Error(
+                    'bfas_spam',
+                    $form_type === 'recipe_review'
+                        ? __('Your review was blocked as spam. If this is wrong, please contact us.', 'bluefairy-antispam')
+                        : __('Your comment was blocked as spam. If this is wrong, please contact us.', 'bluefairy-antispam'),
+                    ['status' => 403]
+                );
+            }
+
             wp_die(
                 esc_html__('Your comment was blocked as spam. If this is wrong, please contact us.', 'bluefairy-antispam'),
                 esc_html__('Spam Detected', 'bluefairy-antispam'),
@@ -237,6 +268,36 @@ class WordPressIntegration
         }
 
         return null;
+    }
+
+    /**
+     * Which form a comment came from, so the matching token field is checked.
+     *
+     * @param array<string, mixed> $comment_data Comment data array.
+     */
+    private function comment_form_type(array $comment_data): string
+    {
+        if (($comment_data['comment_type'] ?? '') === self::RECIPE_REVIEW_TYPE) {
+            return 'recipe_review';
+        }
+
+        // WC reviews are submitted on product pages — use the wc_review form type
+        // so the correct token field (bfas_tk_wc_review) is checked.
+        $post = get_post($comment_data['comment_post_ID'] ?? 0);
+
+        return ($post && $post->post_type === 'product') ? 'wc_review' : 'wp_comment';
+    }
+
+    /**
+     * Whether this request is a REST API request.
+     */
+    private function is_rest_request(): bool
+    {
+        if (function_exists('wp_is_serving_rest_request')) {
+            return wp_is_serving_rest_request();
+        }
+
+        return defined('REST_REQUEST') && REST_REQUEST;
     }
 
     /**

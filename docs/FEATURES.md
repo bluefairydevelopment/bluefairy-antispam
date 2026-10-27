@@ -36,7 +36,7 @@ When enabled, you can also report blocked visitors back to Stop Forum Spam (requ
 |-------|-------|
 | Date | UTC timestamp of the block |
 | Trap | `honeypot`, `timetrap`, or `sfs` |
-| Form | `wp_comment`, `wp_register`, `wc_review`, `wc_register`, `wc_checkout`, `wc_checkout_block` |
+| Form | `wp_comment`, `wp_register`, `wc_review`, `recipe_review`, `wc_register`, `wc_checkout`, `wc_checkout_block` |
 | IP | Visitor's IP address |
 | Email hash | HMAC-SHA256 of the email — raw email never stored |
 | Reported to SFS | Whether this block was reported |
@@ -78,6 +78,12 @@ Logged-in users bypass all traps — no friction for real customers.
 ## WooCommerce Block Checkout
 
 Block checkout uses the Store API; POST fields don't apply. Only the SFS check runs (if enabled). Blocking done via `RouteException`.
+
+---
+
+## BlueFairy Recipes Pro Reviews
+
+The recipe review form posts to its own REST route, which saves the review as a comment. The honeypot and time trap are added to that form through its `bfrcp_review_form_fields` action and checked as the `recipe_review` form. A blocked review gets an error message in the form instead of an error page.
 
 ---
 

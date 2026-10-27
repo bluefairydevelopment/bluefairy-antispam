@@ -33,6 +33,7 @@ No configuration required to get started. Activate and it works. The honeypot an
 * WooCommerce My Account registration
 * WooCommerce shortcode checkout
 * WooCommerce Block checkout
+* BlueFairy Recipes Pro recipe reviews
 
 Logged-in users are never challenged — no friction for your actual customers.
 

@@ -7,6 +7,14 @@ Versioning: Major.Minor.Patch (major = architecture shift, minor = new feature, 
 
 ---
 
+## [Unreleased]
+
+### Added
+- BlueFairy Recipes Pro recipe reviews are protected: the review form gets the honeypot and time trap, and its reviews are checked against them.
+
+### Fixed
+- A guest review sent by a form that posts to its own REST route was always blocked, because that form never carried the token. When a block happens inside a REST request, the plugin now refuses with an error the route returns as JSON, instead of an HTML error page.
+
 ## [1.1.4] — 2026-08-22
 
 ### Security
