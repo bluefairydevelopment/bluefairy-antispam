@@ -11,13 +11,22 @@ Versioning: Major.Minor.Patch (major = architecture shift, minor = new feature, 
 
 ### Added
 - BlueFairy Recipes Pro recipe reviews are protected: the review form gets the honeypot and time trap, and its reviews are checked against them.
+- Visitor IP addresses behind Cloudflare. With the new **Auto-detect Cloudflare** setting (on by default), the plugin uses the `CF-Connecting-IP` header, believed only from Cloudflare's published address ranges, for the time trap, the Stop Forum Spam check and the block log. A Site Health test says when requests arrive through Cloudflare without the visitor's address restored by the server. Developers behind another proxy can use the new `bluefairy_antispam_client_ip` filter.
+- A protected form asks the site for a fresh time-trap token the first time a visitor uses it (`/wp-json/bluefairy-antispam/v1/token`), so forms on cached pages keep working.
 
 ### Changed
 - Logged-out comments sent through the WordPress comments API (`/wp/v2/comments`, when a site allows them) are no longer refused just because they carry no form token. A filled honeypot, a forged, too-fast or expired token, or a Stop Forum Spam listing still refuses them; a comment that passes but has no token is held for moderation.
 - The code follows the WordPress Coding Standards, checked by `phpcs.xml.dist` (`composer phpcs`).
+- Time-trap tokens are tied to the visitor's network (the IPv4 /24 or IPv6 /64), so a token copied from one page load can no longer be replayed from other addresses for 24 hours. Tokens issued by 1.1.4 stop working on upgrade; a visitor with an old page open gets a fresh token as soon as they click into the form.
+
+### Security
+- If the secret key that signs time-trap tokens went missing (a database restore, a migration, a clean-up tool), the key was empty and anyone could sign a valid token. A missing key is now made again automatically, and if it cannot be stored the time trap refuses logged-out submissions instead of trusting tokens.
 
 ### Fixed
 - A guest review sent by a form that posts to its own REST route was always blocked, because that form never carried the token. When a block happens inside a REST request, the plugin now refuses with an error the route returns as JSON, instead of an HTML error page.
+- When another plugin had already refused a comment with an error, a logged-out comment sent through the comments API could be held for moderation instead, losing that error. The earlier error is now kept.
+- A comments API request that core stopped early (a 400) could, in the same PHP process, be mistaken for a later comment. It is now forgotten when the REST response is sent.
+- A bot posting an array where the honeypot or token field belongs caused a PHP warning. It is now refused quietly.
 - The developer documentation named a `bfas_check_submission` filter that does not exist. It now documents the real hooks, `bluefairy_antispam_render_fields` and `bluefairy_antispam_check`.
 
 ## [1.1.4] — 2026-08-22

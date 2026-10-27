@@ -67,6 +67,10 @@ Yes. The Block checkout uses the Store API, so POST-based traps don't apply — 
 
 When a submission is blocked: the time, which trap fired, which form, the IP address, and a hashed (HMAC-SHA256) version of the email address. The raw email address is never stored.
 
+= My site is behind Cloudflare. Does it see the real visitor? =
+
+Yes. With Auto-detect Cloudflare on (the default), the plugin uses the visitor address Cloudflare passes on, and only believes it when the request comes from Cloudflare's published address ranges. Tools > Site Health tells you if your server should restore visitor addresses itself, which fixes them for all of WordPress.
+
 = How long are logs kept? =
 
 90 days by default. Configurable under **Tools > Anti-Spam**.
@@ -102,6 +106,10 @@ No data is ever sent without your explicit opt-in.
 * Added: BlueFairy Recipes Pro recipe reviews are protected. The review form gets the honeypot and time trap, and its reviews are checked against them.
 * Fixed: a guest comment sent by a form that posts to its own REST route was always blocked, because that form never carried the token. A block inside a REST request now returns a JSON error the form can show, instead of an HTML error page.
 * Changed: logged-out comments sent through the WordPress comments API (when a site allows them) are no longer refused just for carrying no form token. Bots are still refused; a comment that passes the checks but has no token is held for moderation.
+* Added: Auto-detect Cloudflare (on by default). Behind Cloudflare the plugin uses the visitor's own address, believed only from Cloudflare's address ranges, and Site Health says when the server should restore it.
+* Changed: time-trap tokens only work from the visitor's network, so a copied token cannot be replayed from elsewhere. Forms fetch a fresh token from your own site on first use, so cached pages keep working.
+* Security: a lost signing key is made again automatically; before, a missing key let anyone sign a valid token.
+* Fixed: an earlier plugin's refusal is kept, a stale comments API request is forgotten, and array values in the trap fields no longer cause a PHP warning.
 
 = 1.1.4 =
 * Security: WP 6.9 Abilities (get-log-entries, get-stats, get-settings) now enforce manage_options at runtime via permission_callback. Previously only the descriptive capability key was set; the API treats capability as metadata, not enforcement.
@@ -135,7 +143,7 @@ No data is ever sent without your explicit opt-in.
 == Upgrade Notice ==
 
 = 1.2.0 =
-Adds protection for BlueFairy Recipes Pro recipe reviews, holds tokenless comments sent through the WordPress comments API for moderation instead of refusing them, and returns a JSON error instead of an HTML page when a block happens during a REST request.
+Adds protection for BlueFairy Recipes Pro recipe reviews, correct visitor addresses behind Cloudflare, tokens that cannot be replayed from elsewhere, and a security fix for a lost signing key.
 
 = 1.1.4 =
 Security fix: WP 6.9 Abilities now enforce manage_options via permission_callback (previously only the descriptive capability key was set). Recommended upgrade for anyone on WP 6.9+.

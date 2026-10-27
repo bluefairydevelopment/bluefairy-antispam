@@ -144,6 +144,37 @@ final class Plugin {
 	 */
 	private function register_assets(): void {
 		add_action(
+			'init',
+			function (): void {
+				wp_register_script( TimeTrap::SCRIPT_HANDLE, BFAS_URL . 'assets/js/token-refresh.js', [], BFAS_VERSION, true );
+			}
+		);
+
+		add_action(
+			'rest_api_init',
+			function (): void {
+				$timetrap = new TimeTrap( $this->settings );
+				register_rest_route(
+					TimeTrap::REST_NAMESPACE,
+					TimeTrap::REST_ROUTE,
+					[
+						'methods'             => 'GET',
+						'callback'            => [ $timetrap, 'rest_token' ],
+						'permission_callback' => '__return_true',
+						'args'                => [
+							'form_type' => [
+								'type'     => 'string',
+								'required' => true,
+							],
+						],
+					]
+				);
+			}
+		);
+
+		add_filter( 'site_status_tests', [ new SiteHealth( $this->settings ), 'register' ] );
+
+		add_action(
 			'wp_enqueue_scripts',
 			function (): void {
 				wp_enqueue_style(

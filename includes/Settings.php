@@ -33,6 +33,7 @@ class Settings {
 		'min_time_seconds'    => 3,
 		'log_retention_days'  => 90,
 		'sfs_check_threshold' => 1,
+		'cloudflare_detect'   => '1',
 		'db_version'          => '1.0',
 	];
 
@@ -68,15 +69,31 @@ class Settings {
 	}
 
 	/**
-	 * Get the HMAC secret (non-autoloaded option).
+	 * Get the HMAC secret (non-autoloaded option), creating it when it is missing.
+	 *
+	 * The secret is first made on activation, but an automatic update does not
+	 * re-run activation, and a database restore, a migration or a clean-up tool
+	 * can lose the option. An empty secret would let anyone sign a valid token,
+	 * so a missing one is made here. Returns an empty string only when it cannot
+	 * be stored; the time trap then refuses every guest submission.
 	 */
 	public function get_hmac_secret(): string {
 		$secret = get_option( 'bfas_hmac_secret', '' );
-		if ( ! is_string( $secret ) ) {
-			return '';
+		if ( is_string( $secret ) && strlen( $secret ) >= 32 ) {
+			return $secret;
 		}
 
-		return $secret;
+		$fresh = bin2hex( random_bytes( 32 ) );
+		if ( false === get_option( 'bfas_hmac_secret' ) ) {
+			add_option( 'bfas_hmac_secret', $fresh, '', false );
+		} else {
+			update_option( 'bfas_hmac_secret', $fresh, false );
+		}
+
+		$stored = get_option( 'bfas_hmac_secret', '' );
+
+		// Another request may have stored its own secret first; either is fine.
+		return is_string( $stored ) && strlen( $stored ) >= 32 ? $stored : '';
 	}
 
 	/**

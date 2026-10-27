@@ -33,14 +33,22 @@ if (! function_exists('add_option')) {
     function add_option(string $option, mixed $value = '', string $deprecated = '', bool|string|null $autoload = null): bool
     {
         $GLOBALS['bfas_test_add_options'][$option] = ['value' => $value, 'autoload' => $autoload];
-        $GLOBALS['bfas_test_options'][$option]     = $value;
+        if (! empty($GLOBALS['bfas_test_options_read_only'])) {
+            return false;
+        }
+        $GLOBALS['bfas_test_options'][$option] = $value;
         return true;
     }
 }
 
 if (! function_exists('update_option')) {
-    function update_option(string $option, mixed $value, bool|string $autoload = true): bool
+    function update_option(string $option, mixed $value, bool|string|null $autoload = null): bool
     {
+        if (! empty($GLOBALS['bfas_test_options_read_only'])) {
+            return false;
+        }
+        $GLOBALS['bfas_test_update_options'][$option] = ['value' => $value, 'autoload' => $autoload];
+        $GLOBALS['bfas_test_options'][$option]        = $value;
         return true;
     }
 }
@@ -49,7 +57,8 @@ if (! function_exists('apply_filters')) {
     /** @param mixed ...$args */
     function apply_filters(string $tag, mixed $value, mixed ...$args): mixed
     {
-        return $value;
+        $filter = $GLOBALS['bfas_test_filters'][$tag] ?? null;
+        return is_callable($filter) ? $filter($value, ...$args) : $value;
     }
 }
 
@@ -220,4 +229,37 @@ if (! function_exists('wp_unslash')) {
 
 if (! function_exists('sanitize_email')) {
     function sanitize_email(string $email): string { return trim($email); }
+}
+
+if (! function_exists('wp_enqueue_script')) {
+    /** @param string[] $deps */
+    function wp_enqueue_script(string $handle, string $src = '', array $deps = [], string|bool|null $ver = false, array|bool $args = []): void
+    {
+        $GLOBALS['bfas_test_enqueued_scripts'][] = $handle;
+    }
+}
+
+if (! function_exists('rest_url')) {
+    function rest_url(string $path = ''): string { return 'https://example.test/wp-json/' . ltrim($path, '/'); }
+}
+
+if (! function_exists('esc_url')) {
+    function esc_url(string $url): string { return htmlspecialchars($url, ENT_QUOTES, 'UTF-8'); }
+}
+
+if (! function_exists('is_wp_error')) {
+    function is_wp_error(mixed $thing): bool { return $thing instanceof WP_Error; }
+}
+
+if (! class_exists('WP_REST_Response')) {
+    class WP_REST_Response
+    {
+        /** @param array<string, string> $headers */
+        public function __construct(public mixed $data = null, public int $status = 200, public array $headers = []) {}
+
+        public function get_data(): mixed { return $this->data; }
+
+        /** @return array<string, string> */
+        public function get_headers(): array { return $this->headers; }
+    }
 }

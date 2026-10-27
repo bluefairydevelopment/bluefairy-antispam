@@ -15,6 +15,7 @@ use BlueFairy\AntiSpam\Sfs\SfsClient;
 use BlueFairy\AntiSpam\Sfs\SfsReporter;
 use BlueFairy\AntiSpam\Traps\Honeypot;
 use BlueFairy\AntiSpam\Traps\TimeTrap;
+use BlueFairy\AntiSpam\VisitorIp;
 
 /**
  * Hooks into WooCommerce forms: reviews, My Account registration,
@@ -31,6 +32,13 @@ class WooCommerceIntegration {
 	 * @var Logger
 	 */
 	private Logger $logger;
+
+	/**
+	 * Plugin settings.
+	 *
+	 * @var Settings
+	 */
+	private Settings $settings;
 
 	/**
 	 * Honeypot trap.
@@ -67,6 +75,7 @@ class WooCommerceIntegration {
 	 * @param Logger   $logger   Block-event logger.
 	 */
 	public function __construct( Settings $settings, Logger $logger ) {
+		$this->settings     = $settings;
 		$this->logger       = $logger;
 		$this->honeypot     = new Honeypot( $settings );
 		$this->timetrap     = new TimeTrap( $settings );
@@ -273,6 +282,6 @@ class WooCommerceIntegration {
 	 * Trusts only REMOTE_ADDR — never X-Forwarded-For without explicit proxy config.
 	 */
 	private function get_ip(): string {
-		return sanitize_text_field( wp_unslash( (string) ( $_SERVER['REMOTE_ADDR'] ?? '' ) ) );
+		return VisitorIp::get( $this->settings );
 	}
 }
