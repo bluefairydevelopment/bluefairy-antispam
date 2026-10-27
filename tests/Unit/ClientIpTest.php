@@ -131,4 +131,13 @@ final class ClientIpTest extends TestCase
         $settings->method('get')->willReturnCallback(fn (string $key, mixed $default = null): mixed => 'cloudflare_detect' === $key ? $detect : $default);
         return $settings;
     }
+
+    public function test_valid_returns_a_plain_ip_or_an_empty_string(): void
+    {
+        $this->assertSame('104.16.0.1', ClientIp::valid('::ffff:104.16.0.1'));
+        $this->assertSame('203.0.113.9', ClientIp::valid(' 203.0.113.9 '));
+        $this->assertSame('2606:4700::1', ClientIp::valid('2606:4700::1'));
+        $this->assertSame('', ClientIp::valid('not-an-ip'));
+        $this->assertSame('', ClientIp::valid(['1.2.3.4']));
+    }
 }

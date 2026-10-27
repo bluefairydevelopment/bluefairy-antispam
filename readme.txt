@@ -109,7 +109,7 @@ No data is ever sent without your explicit opt-in.
 * Added: Auto-detect Cloudflare (on by default). Behind Cloudflare the plugin uses the visitor's own address, believed only from Cloudflare's address ranges, and Site Health says when the server should restore it.
 * Changed: behind Cloudflare, the block log and the Stop Forum Spam check now see each visitor's real IP address instead of Cloudflare's.
 * Security: a lost signing key is made again automatically; before, a missing key let anyone sign a valid token.
-* Fixed: an earlier plugin's refusal is kept, a stale comments API request is forgotten, array values in the trap fields no longer cause a PHP warning, and IPv4 addresses reported in IPv6 form are recognised.
+* Fixed: an earlier plugin's refusal is kept, a stale comments API request is forgotten, array values in the trap fields no longer cause a PHP warning, and IPv4 addresses reported in IPv6 form are recognised, in Site Health too.
 
 = 1.1.4 =
 * Security: WP 6.9 Abilities (get-log-entries, get-stats, get-settings) now enforce manage_options at runtime via permission_callback. Previously only the descriptive capability key was set; the API treats capability as metadata, not enforcement.
