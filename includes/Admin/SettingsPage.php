@@ -150,7 +150,7 @@ class SettingsPage
         add_settings_section(
             'bfas_section_log',
             __('Log', 'bluefairy-antispam'),
-            null,
+            '__return_null',
             'bfas-settings'
         );
 

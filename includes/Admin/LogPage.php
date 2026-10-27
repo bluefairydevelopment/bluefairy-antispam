@@ -5,22 +5,19 @@ namespace BlueFairy\AntiSpam\Admin;
 
 use BlueFairy\AntiSpam\Logger;
 use BlueFairy\AntiSpam\LogRepository;
-use BlueFairy\AntiSpam\Settings;
 
 /**
  * Log admin page under Tools > Anti-Spam Log.
  */
 class LogPage
 {
-    private Settings      $settings;
     private Logger        $logger;
     private LogRepository $repo;
 
-    public function __construct(Settings $settings, Logger $logger)
+    public function __construct(Logger $logger)
     {
-        $this->settings = $settings;
-        $this->logger   = $logger;
-        $this->repo     = new LogRepository();
+        $this->logger = $logger;
+        $this->repo   = new LogRepository();
     }
 
     /**

@@ -19,7 +19,6 @@ use BlueFairy\AntiSpam\Traps\TimeTrap;
  */
 class WooCommerceIntegration
 {
-    private Settings    $settings;
     private Logger      $logger;
     private Honeypot    $honeypot;
     private TimeTrap    $timetrap;
@@ -28,7 +27,6 @@ class WooCommerceIntegration
 
     public function __construct(Settings $settings, Logger $logger)
     {
-        $this->settings     = $settings;
         $this->logger       = $logger;
         $this->honeypot     = new Honeypot($settings);
         $this->timetrap     = new TimeTrap($settings);

@@ -38,7 +38,6 @@ class LogRepository
         }
 
         if (! empty($params)) {
-            // @phpstan-ignore-next-line
             $sql = $wpdb->prepare($sql, ...$params); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
         }
 
@@ -99,7 +98,6 @@ class LogRepository
         $params[] = $offset;
         $sql     .= ' LIMIT %d OFFSET %d';
 
-        // @phpstan-ignore-next-line
         $prepared = $wpdb->prepare($sql, ...$params); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 
         $rows = $wpdb->get_results($prepared, ARRAY_A); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter

@@ -24,7 +24,6 @@ class WordPressIntegration
     public const RECIPE_REVIEW_FIELDS_HOOK = 'bfrcp_review_form_fields';
     public const RECIPE_REVIEW_TYPE        = 'bfrc_review';
 
-    private Settings    $settings;
     private Logger      $logger;
     private Honeypot    $honeypot;
     private TimeTrap    $timetrap;
@@ -33,7 +32,6 @@ class WordPressIntegration
 
     public function __construct(Settings $settings, Logger $logger)
     {
-        $this->settings     = $settings;
         $this->logger       = $logger;
         $this->honeypot     = new Honeypot($settings);
         $this->timetrap     = new TimeTrap($settings);

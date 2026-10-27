@@ -87,7 +87,7 @@ class Installer
         }
 
         $secret = bin2hex(random_bytes(32));
-        add_option('bfas_hmac_secret', $secret, '', 'no'); // non-autoloaded
+        add_option('bfas_hmac_secret', $secret, '', false); // non-autoloaded
     }
 
     /**
@@ -96,7 +96,7 @@ class Installer
     private function maybe_seed_sfs_api_key_option(): void
     {
         if (get_option('bfas_sfs_api_key') === false) {
-            add_option('bfas_sfs_api_key', '', '', 'no');
+            add_option('bfas_sfs_api_key', '', '', false);
         }
     }
 
