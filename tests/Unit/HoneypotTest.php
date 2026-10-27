@@ -147,4 +147,19 @@ final class HoneypotTest extends TestCase
         // Checking against type_b — its honeypot field is different, so not spam.
         $this->assertFalse($this->honeypot->is_spam($post, $type_b));
     }
+
+    public function test_an_array_in_the_honeypot_is_spam_without_a_warning(): void
+    {
+        $settings = $this->createMock(\BlueFairy\AntiSpam\Settings::class);
+        $settings->method('get')->willReturn(true);
+        $hp    = new \BlueFairy\AntiSpam\Traps\Honeypot($settings);
+        $field = $hp->field_name('wp_comment');
+        set_error_handler(static function (int $no, string $msg): never { throw new \ErrorException($msg, 0, $no); });
+        try {
+            $this->assertTrue($hp->is_spam([$field => ['']], 'wp_comment'));
+        } finally {
+            restore_error_handler();
+        }
+        $this->assertFalse($hp->is_spam([$field => ''], 'wp_comment'));
+    }
 }

@@ -66,4 +66,10 @@ final class SettingsPageRoundTripTest extends TestCase
         $this->assertIsArray($clean);
         $this->assertArrayHasKey('honeypot_enabled', $clean);
     }
+
+    public function test_sanitize_settings_saves_the_cloudflare_checkbox(): void
+    {
+        $this->assertSame('1', $this->page->sanitize_settings(['cloudflare_detect' => '1'])['cloudflare_detect']);
+        $this->assertSame('0', $this->page->sanitize_settings([])['cloudflare_detect']);
+    }
 }

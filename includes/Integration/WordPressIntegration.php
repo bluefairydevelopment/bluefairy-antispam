@@ -15,6 +15,7 @@ use BlueFairy\AntiSpam\Sfs\SfsClient;
 use BlueFairy\AntiSpam\Sfs\SfsReporter;
 use BlueFairy\AntiSpam\Traps\Honeypot;
 use BlueFairy\AntiSpam\Traps\TimeTrap;
+use BlueFairy\AntiSpam\VisitorIp;
 
 /**
  * Hooks into core WordPress forms: comments and user registration.
@@ -29,6 +30,13 @@ class WordPressIntegration {
 	 */
 	public const RECIPE_REVIEW_FIELDS_HOOK = 'bfrcp_review_form_fields';
 	public const RECIPE_REVIEW_TYPE        = 'bfrc_review';
+
+	/**
+	 * Plugin settings.
+	 *
+	 * @var Settings
+	 */
+	private Settings $settings;
 
 	/**
 	 * Block-event logger.
@@ -80,6 +88,7 @@ class WordPressIntegration {
 	 * @param Logger   $logger   Block-event logger.
 	 */
 	public function __construct( Settings $settings, Logger $logger ) {
+		$this->settings     = $settings;
 		$this->logger       = $logger;
 		$this->honeypot     = new Honeypot( $settings );
 		$this->timetrap     = new TimeTrap( $settings );
@@ -96,6 +105,7 @@ class WordPressIntegration {
 		add_filter( 'pre_comment_approved', [ $this, 'validate_comment' ], 10, 2 );
 		add_filter( 'rest_pre_insert_comment', [ $this, 'validate_rest_comment' ], 10, 2 );
 		add_filter( 'rest_preprocess_comment', [ $this, 'remember_core_rest_comment' ], 10, 2 );
+		add_filter( 'rest_post_dispatch', [ $this, 'forget_core_rest_comment' ] );
 
 		// BlueFairy Recipes Pro review form (posted to its own REST route, inserted by wp_new_comment()).
 		add_action( self::RECIPE_REVIEW_FIELDS_HOOK, [ $this, 'render_recipe_review_fields' ] );
@@ -159,13 +169,18 @@ class WordPressIntegration {
 	/**
 	 * Validate a traditional (non-REST) comment submission.
 	 *
-	 * @param int|string           $approved     Current approval status.
+	 * @param int|string|\WP_Error $approved     Current approval status.
 	 * @param array<string, mixed> $comment_data Comment data array.
 	 * @return int|string|\WP_Error
 	 */
 	public function validate_comment( mixed $approved, array $comment_data ): mixed {
 		// Taken first, so a logged-in comment cannot leave it for the next one.
 		$core_api_request = $this->take_core_api_request();
+
+		// Another filter already refused the comment: keep its error.
+		if ( is_wp_error( $approved ) ) {
+			return $approved;
+		}
 
 		if ( is_user_logged_in() ) {
 			return $approved;
@@ -227,6 +242,23 @@ class WordPressIntegration {
 		$this->core_api_request = $request;
 
 		return $prepared_comment;
+	}
+
+	/**
+	 * Forget the remembered comments API request once its response is ready.
+	 *
+	 * Core's comments controller can stop after rest_preprocess_comment without
+	 * creating the comment (a 400 for a missing author, too long content and so
+	 * on). Forgetting the request when every REST response is dispatched stops
+	 * a later wp_new_comment() in the same PHP process being taken for it.
+	 *
+	 * @param mixed $response The REST response.
+	 * @return mixed
+	 */
+	public function forget_core_rest_comment( mixed $response ): mixed {
+		$this->core_api_request = null;
+
+		return $response;
 	}
 
 	/**
@@ -453,7 +485,6 @@ class WordPressIntegration {
 	 * Get the visitor's IP address.
 	 */
 	private function get_ip(): string {
-		// Trust only REMOTE_ADDR — do not use X-Forwarded-For without proxy config.
-		return sanitize_text_field( wp_unslash( (string) ( $_SERVER['REMOTE_ADDR'] ?? '' ) ) );
+		return VisitorIp::get( $this->settings );
 	}
 }

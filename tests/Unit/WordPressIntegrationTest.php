@@ -52,7 +52,7 @@ final class WordPressIntegrationTest extends TestCase
     protected function tearDown(): void
     {
         $_POST = [];
-        unset($_SERVER['REMOTE_ADDR'], $GLOBALS['bfas_test_hooks'], $GLOBALS['bfas_test_posts'], $GLOBALS['bfas_test_rest'], $GLOBALS['bfas_test_transients'], $GLOBALS['bfas_test_logged_in']);
+        unset($_SERVER['REMOTE_ADDR'], $_SERVER['HTTP_CF_CONNECTING_IP'], $GLOBALS['bfas_test_hooks'], $GLOBALS['bfas_test_posts'], $GLOBALS['bfas_test_rest'], $GLOBALS['bfas_test_transients'], $GLOBALS['bfas_test_logged_in']);
     }
 
     /**
@@ -78,7 +78,7 @@ final class WordPressIntegrationTest extends TestCase
     {
         $nonce = 'n';
         $ts    = time() - 60;
-        $hmac  = hash_hmac('sha256', $nonce . ':' . $ts . ':' . $form_type, 'test-secret');
+        $hmac  = hash_hmac('sha256', $nonce . ':' . $ts . ':' . $form_type . ':' . \BlueFairy\AntiSpam\ClientIp::network((string) $_SERVER['REMOTE_ADDR']), 'test-secret');
         return base64_encode($nonce . '|' . $ts . '|' . $hmac);
     }
 
@@ -255,5 +255,41 @@ final class WordPressIntegrationTest extends TestCase
         $GLOBALS['bfas_test_rest'] = false;
         $this->expectException(\BfasTestDied::class);
         $this->integration->validate_comment(1, $this->review(20, 'comment'));
+    }
+
+    public function test_the_remembered_request_is_forgotten_when_a_rest_response_is_dispatched(): void
+    {
+        $this->integration->register();
+        $this->assertContains([$this->integration, 'forget_core_rest_comment'], $GLOBALS['bfas_test_hooks']['rest_post_dispatch'] ?? []);
+
+        // Core stopped after rest_preprocess_comment (a 400), so no comment used the request.
+        $GLOBALS['bfas_test_rest'] = true;
+        $this->integration->remember_core_rest_comment([], new \WP_REST_Request(['content' => 'x']));
+        $response = new \stdClass();
+        $this->assertSame($response, $this->integration->forget_core_rest_comment($response));
+
+        // A later wp_new_comment() in the same process is not taken for an API comment:
+        // a tokenless recipe review is refused, not held.
+        $this->assertInstanceOf(\WP_Error::class, $this->integration->validate_comment(0, $this->review()));
+    }
+
+    public function test_an_earlier_wp_error_is_kept(): void
+    {
+        $earlier = new \WP_Error('other_plugin', 'No.', ['status' => 409]);
+        // Through the core comments API, a tokenless guest would otherwise be held (0).
+        $this->assertSame($earlier, $this->core_api_comment(['content' => 'x'], $earlier));
+        // And on the classic path it is not replaced by our own refusal.
+        $GLOBALS['bfas_test_rest'] = true;
+        $this->assertSame($earlier, $this->integration->validate_comment($earlier, $this->review()));
+    }
+
+    public function test_behind_cloudflare_the_visitor_address_is_checked(): void
+    {
+        $this->sfs = true;
+        $_SERVER['REMOTE_ADDR']           = '104.16.0.1';
+        $_SERVER['HTTP_CF_CONNECTING_IP'] = '198.51.100.23';
+        $GLOBALS['bfas_test_transients']['bfas_sfs_' . substr(md5('198.51.100.23sam@example.com'), 0, 12)] = 1;
+        $GLOBALS['bfas_test_transients']['bfas_sfs_' . substr(md5('104.16.0.1sam@example.com'), 0, 12)]    = 0;
+        $this->assertInstanceOf(\WP_Error::class, $this->core_api_comment(['content' => 'x']));
     }
 }

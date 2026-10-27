@@ -102,6 +102,11 @@ class Honeypot {
 
 		$field = $this->field_name( $form_type );
 
+		// An array where a text field belongs is not a browser's doing.
+		if ( isset( $post_data[ $field ] ) && ! is_string( $post_data[ $field ] ) ) {
+			return true;
+		}
+
 		// Spam if the field is present AND non-empty.
 		if ( isset( $post_data[ $field ] ) && trim( (string) $post_data[ $field ] ) !== '' ) {
 			return true;

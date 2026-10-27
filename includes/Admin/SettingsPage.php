@@ -127,6 +127,14 @@ class SettingsPage {
 			'bfas_section_traps'
 		);
 
+		add_settings_field(
+			'bfas_cloudflare_detect',
+			__( 'Visitor IP behind Cloudflare', 'bluefairy-antispam' ),
+			[ $this, 'render_cloudflare_field' ],
+			'bfas-settings',
+			'bfas_section_traps'
+		);
+
 		// --- Stop Forum Spam section ---
 		add_settings_section(
 			'bfas_section_sfs',
@@ -252,6 +260,20 @@ class SettingsPage {
 	}
 
 	/**
+	 * Render the Cloudflare detection field.
+	 *
+	 * @return void
+	 */
+	public function render_cloudflare_field(): void {
+		$value = (bool) $this->settings->get( 'cloudflare_detect', true );
+		echo '<label>';
+		echo '<input type="checkbox" name="bfas_settings[cloudflare_detect]" value="1"' . checked( $value, true, false ) . '>';
+		echo ' ' . esc_html__( 'Auto-detect Cloudflare: when a request comes from Cloudflare\'s own addresses, use the visitor address Cloudflare passes on (CF-Connecting-IP)', 'bluefairy-antispam' );
+		echo '</label>';
+		echo '<p class="description">' . esc_html__( 'The header is believed only from Cloudflare\'s published address ranges, so it cannot be faked by a visitor. Behind another proxy, a developer can supply the address with the bluefairy_antispam_client_ip filter.', 'bluefairy-antispam' ) . '</p>';
+	}
+
+	/**
 	 * Render sfs enabled field.
 	 *
 	 * @return void
@@ -329,6 +351,7 @@ class SettingsPage {
 		$clean['honeypot_enabled']    = ! empty( $input['honeypot_enabled'] ) ? '1' : '0';
 		$clean['timetrap_enabled']    = ! empty( $input['timetrap_enabled'] ) ? '1' : '0';
 		$clean['sfs_enabled']         = ! empty( $input['sfs_enabled'] ) ? '1' : '0';
+		$clean['cloudflare_detect']   = ! empty( $input['cloudflare_detect'] ) ? '1' : '0';
 		$clean['min_time_seconds']    = max( 1, absint( $input['min_time_seconds'] ?? 3 ) );
 		$clean['log_retention_days']  = max( 1, absint( $input['log_retention_days'] ?? 90 ) );
 		$clean['sfs_check_threshold'] = min( 100, max( 0, absint( $input['sfs_check_threshold'] ?? 1 ) ) );
