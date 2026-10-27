@@ -278,8 +278,8 @@ class WooCommerceIntegration {
 	}
 
 	/**
-	 * Get the visitor's IP address.
-	 * Trusts only REMOTE_ADDR — never X-Forwarded-For without explicit proxy config.
+	 * Get the visitor's IP address (see VisitorIp: Cloudflare's header only from
+	 * Cloudflare's ranges, never X-Forwarded-For).
 	 */
 	private function get_ip(): string {
 		return VisitorIp::get( $this->settings );

@@ -78,7 +78,7 @@ final class WordPressIntegrationTest extends TestCase
     {
         $nonce = 'n';
         $ts    = time() - 60;
-        $hmac  = hash_hmac('sha256', $nonce . ':' . $ts . ':' . $form_type . ':' . \BlueFairy\AntiSpam\ClientIp::network((string) $_SERVER['REMOTE_ADDR']), 'test-secret');
+        $hmac  = hash_hmac('sha256', $nonce . ':' . $ts . ':' . $form_type, 'test-secret');
         return base64_encode($nonce . '|' . $ts . '|' . $hmac);
     }
 

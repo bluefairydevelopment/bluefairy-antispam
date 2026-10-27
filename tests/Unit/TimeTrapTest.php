@@ -135,65 +135,58 @@ final class TimeTrapTest extends TestCase
 
 
     // ------------------------------------------------------------------ //
-    // Bound to the visitor's network (review M1)
+    // Same signature as 1.1.4: pages opened or cached before an upgrade
     // ------------------------------------------------------------------ //
 
-    public function test_a_token_only_works_from_the_network_it_was_issued_to(): void
+    /**
+     * A token built exactly as 1.1.4's render_fields() built it (the code is
+     * copied from the v1.1.4 tag) still verifies after the upgrade.
+     */
+    public function test_a_token_minted_by_1_1_4_verifies(): void
     {
-        $_SERVER['REMOTE_ADDR'] = '203.0.113.9';
+        $form_type = 'comment';
+        $nonce     = 'abc123def0';
+        $timestamp = time() - 10;
+        $hmac      = hash_hmac(
+            'sha256',
+            $nonce . ':' . $timestamp . ':' . $form_type,
+            $this->hmac_secret
+        );
+        $token = base64_encode($nonce . '|' . $timestamp . '|' . $hmac);
+
+        $this->assertFalse($this->trap->is_spam(['bfas_tk_comment' => $token], 'comment'));
+    }
+
+    /**
+     * Tokens are not tied to the visitor (WPMAP-219 tracks replay protection),
+     * so a cached page keeps working for every visitor, wherever they are.
+     */
+    public function test_a_token_is_accepted_from_any_address(): void
+    {
         $token = $this->build_valid_token('comment', elapsed: 10);
-        $this->assertFalse($this->trap->is_spam(['bfas_tk_comment' => $token], 'comment'));
-
-        // Same /24 (a phone changing its last octet) still passes.
-        $_SERVER['REMOTE_ADDR'] = '203.0.113.200';
-        $this->assertFalse($this->trap->is_spam(['bfas_tk_comment' => $token], 'comment'));
-
-        // Replayed from another network: refused.
-        $_SERVER['REMOTE_ADDR'] = '198.51.100.9';
-        $this->assertTrue($this->trap->is_spam(['bfas_tk_comment' => $token], 'comment'));
+        foreach (['203.0.113.9', '198.51.100.9', '2001:db8::1', ''] as $addr) {
+            $_SERVER['REMOTE_ADDR'] = $addr;
+            $this->assertFalse($this->trap->is_spam(['bfas_tk_comment' => $token], 'comment'), $addr);
+        }
         unset($_SERVER['REMOTE_ADDR']);
     }
 
-    public function test_a_1_1_4_token_without_the_network_is_refused(): void
+    public function test_a_minted_token_is_timed_from_now(): void
     {
-        $_SERVER['REMOTE_ADDR'] = '203.0.113.9';
-        $nonce = 'n';
-        $ts    = time() - 10;
-        $old   = base64_encode($nonce . '|' . $ts . '|' . hash_hmac('sha256', $nonce . ':' . $ts . ':comment', $this->hmac_secret));
-        $this->assertTrue($this->trap->is_spam(['bfas_tk_comment' => $old], 'comment'));
-        unset($_SERVER['REMOTE_ADDR']);
-    }
-
-    public function test_minted_and_rest_tokens_verify_for_the_same_visitor(): void
-    {
-        $_SERVER['REMOTE_ADDR'] = '203.0.113.9';
         $token = $this->trap->mint('comment');
         $this->assertNotSame('', $token);
         // Too fast straight away, which proves it is a live token timed from now.
         $this->assertTrue($this->trap->is_spam(['bfas_tk_comment' => $token], 'comment'));
-
-        $rest = $this->trap->rest_token(new \WP_REST_Request(['form_type' => 'comment']));
-        $this->assertInstanceOf(\WP_REST_Response::class, $rest);
-        $this->assertNotSame('', $rest->get_data()['token']);
-        // A cached answer would hand one visitor's token to everyone.
-        $this->assertStringContainsString('no-store', $rest->get_headers()['Cache-Control']);
-
-        $bad = $this->trap->rest_token(new \WP_REST_Request(['form_type' => '<script>']));
-        $this->assertInstanceOf(\WP_Error::class, $bad);
-        $this->assertSame(['status' => 400], $bad->get_error_data());
-        $this->assertInstanceOf(\WP_Error::class, $this->trap->rest_token(new \WP_REST_Request(['form_type' => ['a']])));
-        unset($_SERVER['REMOTE_ADDR']);
     }
 
-    public function test_render_prints_the_refresh_address_and_enqueues_the_script(): void
+    public function test_render_prints_only_the_token_field(): void
     {
         $GLOBALS['bfas_test_enqueued_scripts'] = [];
         ob_start();
         $this->trap->render_fields('comment');
         $html = (string) ob_get_clean();
-        $this->assertStringContainsString('data-bfas-refresh="https://example.test/wp-json/bluefairy-antispam/v1/token"', $html);
-        $this->assertStringContainsString('data-bfas-form="comment"', $html);
-        $this->assertContains(TimeTrap::SCRIPT_HANDLE, $GLOBALS['bfas_test_enqueued_scripts']);
+        $this->assertMatchesRegularExpression('/^<input type="hidden" name="bfas_tk_comment" value="[A-Za-z0-9+\/=]+">$/', $html);
+        $this->assertSame([], $GLOBALS['bfas_test_enqueued_scripts']);
         unset($GLOBALS['bfas_test_enqueued_scripts']);
     }
 
@@ -213,7 +206,7 @@ final class TimeTrapTest extends TestCase
 
         // A token "signed" with the empty key would otherwise verify.
         $ts    = time() - 10;
-        $forged = base64_encode('n|' . $ts . '|' . hash_hmac('sha256', 'n:' . $ts . ':comment:', ''));
+        $forged = base64_encode('n|' . $ts . '|' . hash_hmac('sha256', 'n:' . $ts . ':comment', ''));
         $this->assertTrue($trap->is_spam(['bfas_tk_comment' => $forged], 'comment'));
         $this->assertSame('', $trap->mint('comment'));
     }
@@ -240,8 +233,7 @@ final class TimeTrapTest extends TestCase
     {
         $nonce     = substr(md5(uniqid((string) mt_rand(), true)), 0, 10);
         $timestamp = time() - $elapsed;
-        $network   = \BlueFairy\AntiSpam\ClientIp::network((string) ($_SERVER['REMOTE_ADDR'] ?? ''));
-        $hmac      = hash_hmac('sha256', $nonce . ':' . $timestamp . ':' . $form_type . ':' . $network, $this->hmac_secret);
+        $hmac      = hash_hmac('sha256', $nonce . ':' . $timestamp . ':' . $form_type, $this->hmac_secret);
         return base64_encode($nonce . '|' . $timestamp . '|' . $hmac);
     }
 }

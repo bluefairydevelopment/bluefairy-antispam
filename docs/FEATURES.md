@@ -44,11 +44,11 @@ The field name is picked from a pool of eight realistic-sounding names (such as 
 
 ## Time Trap
 
-When the page loads, a signed token goes into a hidden field. It holds a nonce, the time and the form type, signed with HMAC-SHA256 and a secret key only your site knows. The signature also covers the visitor's network (the first three parts of an IPv4 address, or the first half of an IPv6 address), so a token copied from one visit does not work from somewhere else. The key is made at activation, made again automatically if it is ever lost (after a database restore, for example), and is not autoloaded. If the key cannot be stored at all, the time trap refuses every logged-out submission rather than accept tokens anyone could sign.
+When the page loads, a signed token goes into a hidden field. It holds a nonce, the time and the form type, signed with HMAC-SHA256 and a secret key only your site knows. The key is made at activation, made again automatically if it is ever lost (after a database restore, for example), and is not autoloaded. If the key cannot be stored at all, the time trap refuses every logged-out submission rather than accept tokens anyone could sign.
 
-On submit, the plugin checks the signature, the network and how long the visitor took. A form sent in under 3 seconds (the default; you can set 1 to 120) is refused, because bots submit instantly and people take a few seconds. Tokens expire after 24 hours. The form type is part of the signature, so a token from the comment form cannot be reused on the checkout.
+On submit, the plugin checks the signature and how long the visitor took. A form sent in under 3 seconds (the default; you can set 1 to 120) is refused, because bots submit instantly and people take a few seconds. Tokens expire after 24 hours. The form type is part of the signature, so a token from the comment form cannot be reused on the checkout.
 
-Pages served from a full-page cache carry the token made for whoever loaded the page first. So the first time a visitor clicks into a protected form, a small script asks your own site for a fresh token (`/wp-json/bluefairy-antispam/v1/token`), and the 3 seconds count from then. Nothing is sent anywhere else. Without JavaScript the token in the page is used, which works whenever the page was not served from a cache.
+The time trap needs no JavaScript and works on cached pages: a page served from a full-page cache carries a token made when the cache was filled, and the 3 seconds count from then. A cached token keeps working for every visitor until it expires after 24 hours, so a page cached for longer than a day refuses logged-out submissions until the cache is refreshed.
 
 ---
 
@@ -59,6 +59,10 @@ Behind Cloudflare, every request reaches your server from one of Cloudflare's ma
 With **Auto-detect Cloudflare** on (the default), the plugin uses the visitor address Cloudflare passes on in its `CF-Connecting-IP` header, but only when the request really comes from Cloudflare's published address ranges. A visitor who sends that header directly is ignored, so it cannot be used to fake an address. The ranges are built into the plugin; it never downloads them.
 
 **Tools > Site Health** shows whether requests arrive through Cloudflare without the visitor's address being restored. The best fix is on the server (Apache `mod_remoteip`, nginx `real_ip`, or LiteSpeed's "Use Client IP in Header"), because that corrects the address for all of WordPress, not just this plugin. Your host can turn it on.
+
+Site Health also warns when requests arrive from a local or private address, such as `127.0.0.1`. That is normal on a development site. On a live site it usually means a tunnel or proxy on the same network (Cloudflare Tunnel, for example), and then every visitor appears to come from that one address. Restore the visitor's address on the server, or use the `bluefairy_antispam_client_ip` filter.
+
+Some servers report IPv4 visitors in IPv6 form (`::ffff:203.0.113.9`). The plugin treats such an address as the IPv4 address it stands for.
 
 ---
 
@@ -162,7 +166,7 @@ Other plugins can protect their own forms with two hooks:
 
 Use your own form type name, the same one in both calls.
 
-- **Filter `bluefairy_antispam_client_ip( string $ip, string $remote_addr )`** returns the visitor address the plugin uses. Behind a proxy other than Cloudflare, return the visitor's address from your proxy's header, but only after checking the request came from your proxy. A value that is not a valid IP address is ignored.
+- **Filter `bluefairy_antispam_client_ip( string $ip, string $remote_addr )`** returns the visitor address the plugin uses. Behind a proxy other than Cloudflare, return the visitor's address from your proxy's header, but only after checking the request came from your proxy. A value that is not a valid IP address is ignored, and the address the plugin worked out itself is used instead.
 
 ---
 
