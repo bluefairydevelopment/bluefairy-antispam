@@ -115,3 +115,79 @@ if (! function_exists('wp_register_ability_category')) {
         $GLOBALS['bfas_test_registered_ability_categories'][$name] = $args;
     }
 }
+
+// ---------------------------------------------------------------------------
+// Hooks, posts, REST and comment refusal (WordPressIntegrationTest)
+// ---------------------------------------------------------------------------
+
+if (! function_exists('add_action')) {
+    function add_action(string $hook, callable $callback, int $priority = 10, int $accepted_args = 1): bool
+    {
+        $GLOBALS['bfas_test_hooks'][$hook][] = $callback;
+        return true;
+    }
+}
+
+if (! function_exists('add_filter')) {
+    function add_filter(string $hook, callable $callback, int $priority = 10, int $accepted_args = 1): bool
+    {
+        $GLOBALS['bfas_test_hooks'][$hook][] = $callback;
+        return true;
+    }
+}
+
+if (! function_exists('get_post')) {
+    function get_post(mixed $post = null): ?object
+    {
+        return $GLOBALS['bfas_test_posts'][(int) $post] ?? null;
+    }
+}
+
+if (! function_exists('wp_is_serving_rest_request')) {
+    function wp_is_serving_rest_request(): bool
+    {
+        return (bool) ($GLOBALS['bfas_test_rest'] ?? false);
+    }
+}
+
+if (! class_exists('BfasTestDied')) {
+    /** Thrown by the wp_die() stub so a test can see the request was stopped. */
+    final class BfasTestDied extends \RuntimeException {}
+}
+
+if (! function_exists('wp_die')) {
+    /** @param array<string, mixed> $args */
+    function wp_die(string $message = '', string $title = '', array $args = []): never
+    {
+        throw new BfasTestDied($message);
+    }
+}
+
+if (! class_exists('WP_Error')) {
+    class WP_Error
+    {
+        /** @param mixed $data */
+        public function __construct(public string $code = '', public string $message = '', public mixed $data = null) {}
+
+        public function get_error_code(): string { return $this->code; }
+
+        public function get_error_message(): string { return $this->message; }
+
+        public function get_error_data(): mixed { return $this->data; }
+    }
+}
+
+if (! function_exists('get_transient')) {
+    function get_transient(string $transient): mixed
+    {
+        return false;
+    }
+}
+
+if (! function_exists('wp_unslash')) {
+    function wp_unslash(mixed $value): mixed { return $value; }
+}
+
+if (! function_exists('sanitize_email')) {
+    function sanitize_email(string $email): string { return trim($email); }
+}

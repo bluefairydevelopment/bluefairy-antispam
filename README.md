@@ -45,6 +45,7 @@ Optional configuration: **Tools > Anti-Spam**
 - WooCommerce My Account registration
 - WooCommerce shortcode checkout
 - WooCommerce Block checkout (Store API)
+- BlueFairy Recipes Pro recipe reviews (its own review form and REST route)
 
 Logged-in users bypass all traps — no friction for real customers.
 
