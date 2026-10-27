@@ -55,6 +55,28 @@ final class SiteHealthTest extends TestCase
     }
 
     /**
+     * Dual-stack servers can report an IPv4 client as ::ffff:a.b.c.d. PHP counts
+     * that form as a reserved range, so it must be normalised before the
+     * local/private check or a Cloudflare request reads as a local one.
+     */
+    public function test_an_ipv4_mapped_cloudflare_address_reports_the_cloudflare_status(): void
+    {
+        $_SERVER['REMOTE_ADDR'] = '::ffff:104.16.0.1';
+        $on = $this->health('1')->run();
+        $this->assertSame('recommended', $on['status']);
+        $this->assertStringContainsString('compensates', $on['description']);
+        $this->assertStringNotContainsString('Cloudflare Tunnel', $on['description']);
+
+        $this->assertSame('critical', $this->health('0')->run()['status']);
+
+        $_SERVER['REMOTE_ADDR'] = '::ffff:203.0.113.9';
+        $this->assertSame('good', $this->health('1')->run()['status']);
+
+        $_SERVER['REMOTE_ADDR'] = '::ffff:10.0.0.5';
+        $this->assertStringContainsString('Cloudflare Tunnel', $this->health('1')->run()['description']);
+    }
+
+    /**
      * Cloudflare Tunnel or a proxy on the same network: every visitor arrives
      * from one local address, which must not be reported as "good".
      */

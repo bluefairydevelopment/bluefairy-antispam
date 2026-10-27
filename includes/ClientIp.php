@@ -169,7 +169,7 @@ final class ClientIp {
 	 *
 	 * @param mixed $value A $_SERVER value.
 	 */
-	private static function valid( mixed $value ): string {
+	public static function valid( mixed $value ): string {
 		if ( ! is_string( $value ) ) {
 			return '';
 		}

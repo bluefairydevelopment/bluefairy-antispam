@@ -67,8 +67,10 @@ final class SiteHealth {
 			'color' => 'blue',
 		];
 
-		$remote = isset( $_SERVER['REMOTE_ADDR'] ) && is_string( $_SERVER['REMOTE_ADDR'] ) ? trim( sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) ) : '';
-		if ( false !== filter_var( $remote, FILTER_VALIDATE_IP ) && false === filter_var( $remote, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) {
+		// The arriving address in its plain form: an IPv4-mapped IPv6 address
+		// (::ffff:a.b.c.d) would otherwise count as a reserved address below.
+		$remote = isset( $_SERVER['REMOTE_ADDR'] ) && is_string( $_SERVER['REMOTE_ADDR'] ) ? ClientIp::valid( sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) ) : '';
+		if ( '' !== $remote && false === filter_var( $remote, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) {
 			return [
 				'label'       => __( 'Requests reach the site from a local or private address', 'bluefairy-antispam' ),
 				'status'      => 'recommended',

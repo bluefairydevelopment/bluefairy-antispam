@@ -28,6 +28,7 @@ Versioning: Major.Minor.Patch (major = architecture shift, minor = new feature, 
 - A comments API request that core stopped early (a 400) could, in the same PHP process, be mistaken for a later comment. It is now forgotten when the REST response is sent.
 - A bot posting an array where the honeypot or token field belongs caused a PHP warning. It is now refused quietly.
 - A server that reports IPv4 visitors in IPv6 form (`::ffff:203.0.113.9`) is handled: such an address is treated as the IPv4 address it stands for, including when checking whether a request came from Cloudflare.
+- Site Health reported a request from a Cloudflare server whose address arrived in IPv6 form (`::ffff:104.16.0.1`) as coming from a local or private address. It now reports the Cloudflare status.
 - The developer documentation named a `bfas_check_submission` filter that does not exist. It now documents the real hooks, `bluefairy_antispam_render_fields` and `bluefairy_antispam_check`.
 
 ## [1.1.4] — 2026-08-22
