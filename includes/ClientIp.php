@@ -138,11 +138,11 @@ final class ClientIp {
 		foreach ( $ranges as $range ) {
 			[ $subnet, $bits ] = array_pad( explode( '/', $range, 2 ), 2, '' );
 			$net               = @inet_pton( $subnet ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- inet_pton warns on invalid input; false is handled.
-			if ( false === $net || strlen( $net ) !== strlen( $packed ) ) {
+			if ( false === $net || strlen( $net ) !== strlen( $packed ) || ! ctype_digit( $bits ) ) {
 				continue;
 			}
 
-			$bits  = (int) $bits;
+			$bits  = min( (int) $bits, 8 * strlen( $net ) );
 			$bytes = intdiv( $bits, 8 );
 			if ( substr( $packed, 0, $bytes ) !== substr( $net, 0, $bytes ) ) {
 				continue;

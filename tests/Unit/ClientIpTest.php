@@ -47,6 +47,9 @@ final class ClientIpTest extends TestCase
         // An IPv4 address never matches an IPv6 range, and junk matches nothing.
         $this->assertFalse(ClientIp::in_ranges('36.0.203.0', ['2400:cb00::/32']));
         $this->assertFalse(ClientIp::in_ranges('not-an-ip', ClientIp::CLOUDFLARE_RANGES));
+        // A range without a prefix length matches nothing, rather than everything.
+        $this->assertFalse(ClientIp::in_ranges('203.0.113.9', ['104.16.0.0']));
+        $this->assertFalse(ClientIp::in_ranges('203.0.113.9', ['104.16.0.0/x']));
     }
 
     public function test_detection_off_or_a_bad_header_falls_back_to_remote_addr(): void
