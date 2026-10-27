@@ -53,4 +53,18 @@ final class SiteHealthTest extends TestCase
         $this->assertSame('critical', $result['status']);
         $this->assertStringContainsString('turned off', $result['description']);
     }
+
+    /**
+     * Cloudflare Tunnel or a proxy on the same network: every visitor arrives
+     * from one local address, which must not be reported as "good".
+     */
+    public function test_recommended_when_requests_come_from_a_local_or_private_address(): void
+    {
+        foreach (['127.0.0.1', '::1', '10.0.0.5', '192.168.1.20', '172.16.0.3', 'fd00::1'] as $addr) {
+            $_SERVER['REMOTE_ADDR'] = $addr;
+            $result = $this->health('1')->run();
+            $this->assertSame('recommended', $result['status'], $addr);
+            $this->assertStringContainsString('Cloudflare Tunnel', $result['description'], $addr);
+        }
+    }
 }

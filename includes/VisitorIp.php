@@ -23,15 +23,25 @@ final class VisitorIp {
 	/**
 	 * The visitor's address for this request, or an empty string.
 	 *
-	 * Filter: bluefairy_antispam_client_ip( string $ip, string $remote_addr )
+	 * Filter: bluefairy_antispam_client_ip( string $ip, string $remote_addr ).
+	 * The filter must return a plain IP address. Anything else is ignored and
+	 * the address worked out by the plugin is used instead. A filter that
+	 * returns X-Forwarded-For trusts a header any client can set.
 	 *
 	 * @param Settings $settings Plugin settings.
 	 */
 	public static function get( Settings $settings ): string {
-		$remote = isset( $_SERVER['REMOTE_ADDR'] ) && is_string( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
-		$ip     = ( new ClientIp( (bool) $settings->get( 'cloudflare_detect', '1' ) ) )->resolve( $_SERVER );
-		$ip     = apply_filters( 'bluefairy_antispam_client_ip', $ip, $remote );
+		$remote   = isset( $_SERVER['REMOTE_ADDR'] ) && is_string( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+		$ip       = ( new ClientIp( (bool) $settings->get( 'cloudflare_detect', '1' ) ) )->resolve( $_SERVER );
+		$filtered = apply_filters( 'bluefairy_antispam_client_ip', $ip, $remote );
 
-		return is_string( $ip ) && false !== filter_var( $ip, FILTER_VALIDATE_IP ) ? $ip : '';
+		if ( is_string( $filtered ) ) {
+			$filtered = trim( $filtered );
+			if ( false !== filter_var( $filtered, FILTER_VALIDATE_IP ) ) {
+				return $filtered;
+			}
+		}
+
+		return $ip;
 	}
 }

@@ -68,13 +68,22 @@ final class ClientIpTest extends TestCase
         $this->assertFalse(ClientIp::from_cloudflare([]));
     }
 
-    public function test_network_is_the_ipv4_24_and_the_ipv6_64(): void
+    /**
+     * Some dual-stack servers report an IPv4 visitor as ::ffff:a.b.c.d.
+     */
+    public function test_ipv4_mapped_ipv6_is_treated_as_ipv4(): void
     {
-        $this->assertSame(ClientIp::network('203.0.113.9'), ClientIp::network('203.0.113.200'));
-        $this->assertNotSame(ClientIp::network('203.0.113.9'), ClientIp::network('203.0.114.9'));
-        $this->assertSame(ClientIp::network('2001:db8:1:2::1'), ClientIp::network('2001:db8:1:2:ffff::9'));
-        $this->assertNotSame(ClientIp::network('2001:db8:1:2::1'), ClientIp::network('2001:db8:1:3::1'));
-        $this->assertSame('', ClientIp::network('nope'));
+        $this->assertTrue(ClientIp::in_ranges('::ffff:104.16.0.1', ClientIp::CLOUDFLARE_RANGES));
+        $this->assertTrue(ClientIp::from_cloudflare(['REMOTE_ADDR' => '::ffff:162.159.1.1']));
+        $this->assertFalse(ClientIp::from_cloudflare(['REMOTE_ADDR' => '::ffff:203.0.113.9']));
+        // A mapped Cloudflare address passes the visitor's header on.
+        $this->assertSame('198.51.100.7', (new ClientIp(true))->resolve(['REMOTE_ADDR' => '::ffff:104.16.0.1', 'HTTP_CF_CONNECTING_IP' => '198.51.100.7']));
+        // The address itself comes back in its IPv4 form, header or not.
+        $this->assertSame('203.0.113.9', (new ClientIp(true))->resolve(['REMOTE_ADDR' => '::ffff:203.0.113.9']));
+        $this->assertSame('198.51.100.7', (new ClientIp(true))->resolve(['REMOTE_ADDR' => '104.16.0.1', 'HTTP_CF_CONNECTING_IP' => '::ffff:198.51.100.7']));
+        // An ordinary IPv6 address is left alone, and is not mistaken for IPv4.
+        $this->assertSame('2001:db8::1', (new ClientIp(true))->resolve(['REMOTE_ADDR' => '2001:db8::1']));
+        $this->assertFalse(ClientIp::in_ranges('::104.16.0.1', ClientIp::CLOUDFLARE_RANGES));
     }
 
     public function test_the_bundled_ranges_are_all_valid_cidrs(): void
@@ -104,9 +113,16 @@ final class ClientIpTest extends TestCase
         $this->assertSame('192.0.2.44', VisitorIp::get($off));
         $this->assertSame(['104.16.0.1', '104.16.0.1'], $seen);
 
-        // A filter that returns something that is not an address is ignored.
-        $GLOBALS['bfas_test_filters'][VisitorIp::FILTER] = fn (): string => 'x';
-        $this->assertSame('', VisitorIp::get($off));
+        // A filter that returns something that is not an address is ignored,
+        // and the address the plugin worked out is used instead.
+        foreach (['x', '', null, ['1.2.3.4'], 42] as $bad) {
+            $GLOBALS['bfas_test_filters'][VisitorIp::FILTER] = fn () => $bad;
+            $this->assertSame('104.16.0.1', VisitorIp::get($off), var_export($bad, true));
+            $this->assertSame('198.51.100.7', VisitorIp::get($on), var_export($bad, true));
+        }
+        // Surrounding whitespace from a filter is forgiven.
+        $GLOBALS['bfas_test_filters'][VisitorIp::FILTER] = fn (): string => " 192.0.2.44\n";
+        $this->assertSame('192.0.2.44', VisitorIp::get($off));
     }
 
     private function settings(string $detect): Settings

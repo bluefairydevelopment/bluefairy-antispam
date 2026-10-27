@@ -67,6 +67,19 @@ final class SiteHealth {
 			'color' => 'blue',
 		];
 
+		$remote = isset( $_SERVER['REMOTE_ADDR'] ) && is_string( $_SERVER['REMOTE_ADDR'] ) ? trim( sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) ) : '';
+		if ( false !== filter_var( $remote, FILTER_VALIDATE_IP ) && false === filter_var( $remote, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) {
+			return [
+				'label'       => __( 'Requests reach the site from a local or private address', 'bluefairy-antispam' ),
+				'status'      => 'recommended',
+				'badge'       => $badge,
+				'description' => '<p>' . esc_html__( 'This request arrived from a local or private network address. That is normal on a development site. On a live site it usually means a tunnel or proxy on the same network (such as Cloudflare Tunnel), and then every visitor appears to come from that one address: BlueFairy Anti-Spam\'s Stop Forum Spam check and block log, and WordPress itself, see the proxy instead of the visitor.', 'bluefairy-antispam' ) . '</p>'
+					. '<p>' . esc_html__( 'The fix is on the server: have it restore the visitor\'s address from the proxy\'s header (Apache mod_remoteip, nginx real_ip), or use the bluefairy_antispam_client_ip filter.', 'bluefairy-antispam' ) . '</p>',
+				'actions'     => '',
+				'test'        => 'bfas_visitor_ip',
+			];
+		}
+
 		if ( ! ClientIp::from_cloudflare( $_SERVER ) ) {
 			return [
 				'label'       => __( 'Visitor IP addresses reach the site', 'bluefairy-antispam' ),

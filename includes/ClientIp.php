@@ -105,33 +105,14 @@ final class ClientIp {
 	}
 
 	/**
-	 * The network an address belongs to, for binding a token to a visitor:
-	 * the /24 of an IPv4 address and the /64 of an IPv6 address. Phones and
-	 * IPv6 privacy addresses change the last part of the address often, so the
-	 * whole address would refuse real visitors.
-	 *
-	 * @param string $ip An IP address.
-	 */
-	public static function network( string $ip ): string {
-		$packed = @inet_pton( $ip ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- inet_pton warns on invalid input; false is handled.
-		if ( false === $packed ) {
-			return '';
-		}
-
-		$keep = 4 === strlen( $packed ) ? 3 : 8;
-
-		return bin2hex( substr( $packed, 0, $keep ) );
-	}
-
-	/**
 	 * Whether an address is inside any of the given CIDR ranges.
 	 *
 	 * @param string   $ip     An IP address.
 	 * @param string[] $ranges CIDR ranges.
 	 */
 	public static function in_ranges( string $ip, array $ranges ): bool {
-		$packed = @inet_pton( $ip ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- inet_pton warns on invalid input; false is handled.
-		if ( false === $packed ) {
+		$packed = self::pack( $ip );
+		if ( '' === $packed ) {
 			return false;
 		}
 
@@ -163,7 +144,28 @@ final class ClientIp {
 	}
 
 	/**
+	 * An address in binary form, with an IPv4-mapped IPv6 address
+	 * (::ffff:a.b.c.d, as some dual-stack servers report IPv4 visitors)
+	 * reduced to its four IPv4 bytes. Empty for an invalid address.
+	 *
+	 * @param string $ip An IP address.
+	 */
+	private static function pack( string $ip ): string {
+		$packed = @inet_pton( $ip ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- inet_pton warns on invalid input; false is handled.
+		if ( false === $packed ) {
+			return '';
+		}
+
+		if ( 16 === strlen( $packed ) && str_repeat( "\0", 10 ) . "\xff\xff" === substr( $packed, 0, 12 ) ) {
+			return substr( $packed, 12 );
+		}
+
+		return $packed;
+	}
+
+	/**
 	 * A valid IP address from a server value, or an empty string.
+	 * An IPv4-mapped IPv6 address is returned in its IPv4 form.
 	 *
 	 * @param mixed $value A $_SERVER value.
 	 */
@@ -173,7 +175,12 @@ final class ClientIp {
 		}
 
 		$value = trim( $value );
+		if ( false === filter_var( $value, FILTER_VALIDATE_IP ) ) {
+			return '';
+		}
 
-		return false !== filter_var( $value, FILTER_VALIDATE_IP ) ? $value : '';
+		$packed = self::pack( $value );
+
+		return 4 === strlen( $packed ) ? (string) inet_ntop( $packed ) : $value;
 	}
 }
