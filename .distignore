@@ -8,7 +8,10 @@ phpcs.xml.dist
 tests/
 vendor/
 wp-org-assets/
-docs/
+/docs/FEATURES.md
+/docs/MARKETING.txt
+/docs/images/
+/docs/screenshots/
 CHANGELOG.md
 README.md
 blueprint.json
