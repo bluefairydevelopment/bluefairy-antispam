@@ -5,7 +5,7 @@ Tags: spam, anti-spam, honeypot, comments, woocommerce
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.2.0
+Stable tag: 1.2.1
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -102,6 +102,9 @@ No data is ever sent without your explicit opt-in.
 
 == Changelog ==
 
+= 1.2.1 =
+* Fixed: The plugin package no longer includes developer and internal files that were never meant to ship.
+
 = 1.2.0 =
 * Added: BlueFairy Recipes Pro recipe reviews are protected. The review form gets the honeypot and time trap, and its reviews are checked against them.
 * Fixed: a guest comment sent by a form that posts to its own REST route was always blocked, because that form never carried the token. A block inside a REST request now returns a JSON error the form can show, instead of an HTML error page.
@@ -141,6 +144,9 @@ No data is ever sent without your explicit opt-in.
 * Initial release. Honeypot, time trap, optional Stop Forum Spam integration, dashboard widget, admin log.
 
 == Upgrade Notice ==
+
+= 1.2.1 =
+Removes files that did not belong in the plugin package. No action required.
 
 = 1.2.0 =
 Adds protection for BlueFairy Recipes Pro recipe reviews, correct visitor addresses behind Cloudflare, and a security fix for a lost signing key. Forms on pages cached before the upgrade keep working.
