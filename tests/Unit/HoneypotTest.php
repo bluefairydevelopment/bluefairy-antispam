@@ -129,22 +129,26 @@ final class HoneypotTest extends TestCase
 
     public function test_different_form_type_field_is_not_spam(): void
     {
-        // Get field for 'contact', fill it, but check 'newsletter' — the
-        // two may use the same pool slot (collision) so find a non-colliding pair.
-        $type_a = 'bfas_form_aaa';
-        $type_b = 'bfas_form_bbb';
-
-        // Skip if they resolve to the same pool index (collision — test would be vacuous).
-        $index_a = (crc32($type_a) & 0x7FFFFFFF) % 8;
-        $index_b = (crc32($type_b) & 0x7FFFFFFF) % 8;
-        if ($index_a === $index_b) {
-            $this->markTestSkipped('chosen types resolve to same honeypot field');
+        // Two real form types that the plugin maps to DIFFERENT pool fields.
+        // Chosen by asking field_name() itself, so the test never depends on a
+        // copy of the hashing and never has to skip.
+        $type_a = 'wp_comment';
+        $type_b = null;
+        foreach (['wc_review', 'wp_registration', 'wc_checkout', 'recipe_review', 'wp_login', 'wc_register'] as $candidate) {
+            if ($this->honeypot->field_name($candidate) !== $this->honeypot->field_name($type_a)) {
+                $type_b = $candidate;
+                break;
+            }
         }
+        $this->assertNotNull($type_b, 'no candidate form type maps to a different honeypot field');
 
-        $field_a = $this->honeypot->field_name($type_a);
-        $post    = [$field_a => 'filled'];
+        $post = [$this->honeypot->field_name($type_a) => 'filled'];
 
-        // Checking against type_b — its honeypot field is different, so not spam.
+        // Positive control: the same post IS spam for the form it belongs to,
+        // so the assertion below cannot pass merely because nothing is ever spam.
+        $this->assertTrue($this->honeypot->is_spam($post, $type_a));
+
+        // Checked as type_b, whose honeypot field is a different one: not spam.
         $this->assertFalse($this->honeypot->is_spam($post, $type_b));
     }
 
