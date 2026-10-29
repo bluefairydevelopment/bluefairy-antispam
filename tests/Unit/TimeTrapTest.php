@@ -251,7 +251,20 @@ final class TimeTrapTest extends TestCase
         $this->assertFalse($this->trap->is_spam($post, 'comment'));
         $this->assertTrue($this->trap->consume($post, 'comment'), 'first use');
         $this->assertFalse($this->trap->is_spam($post, 'comment'), 'a replay is not refused by is_spam()');
-        $this->assertFalse($this->trap->consume($post, 'comment'), 'second use');
+        $this->assertFalse((new TimeTrap($this->settings))->consume($post, 'comment'), 'second use, in a later request');
+    }
+
+    public function test_one_submission_checked_twice_in_one_request_stays_first(): void
+    {
+        // Core runs pre_comment_approved in wp_allow_comment() and again in
+        // wp_check_comment_data() for the same comment.
+        $this->reset_state();
+        $post = ['bfas_tk_comment' => $this->build_valid_token('comment', 10)];
+        $this->assertTrue($this->trap->consume($post, 'comment'));
+        $this->assertTrue($this->trap->consume($post, 'comment'), 'same request');
+
+        $next_request = new TimeTrap($this->settings);
+        $this->assertFalse($next_request->consume($post, 'comment'), 'a later request is a replay');
     }
 
     public function test_the_used_record_expires_with_the_token_and_is_not_autoloaded(): void

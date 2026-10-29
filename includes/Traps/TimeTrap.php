@@ -48,6 +48,15 @@ class TimeTrap {
 	private Settings $settings;
 
 	/**
+	 * Used-token records this request created. WordPress runs
+	 * pre_comment_approved twice for one comment (wp_allow_comment(), then
+	 * wp_check_comment_data()), so the same submission must stay first.
+	 *
+	 * @var array<string, true>
+	 */
+	private array $consumed = [];
+
+	/**
 	 * Constructor.
 	 *
 	 * @param Settings $settings Plugin settings.
@@ -263,7 +272,15 @@ class TimeTrap {
 
 		$name = self::USED_PREFIX . substr( hash( 'sha256', $form_type . '|' . $parts[2] ), 0, 40 );
 
-		return add_option( $name, (string) ( (int) $parts[1] + self::LIFETIME ), '', false );
+		if ( isset( $this->consumed[ $name ] ) ) {
+			return true;
+		}
+		if ( ! add_option( $name, (string) ( (int) $parts[1] + self::LIFETIME ), '', false ) ) {
+			return false;
+		}
+		$this->consumed[ $name ] = true;
+
+		return true;
 	}
 
 	/**
