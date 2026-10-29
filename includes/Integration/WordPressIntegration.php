@@ -221,7 +221,31 @@ class WordPressIntegration {
 			);
 		}
 
-		return $approved;
+		return $this->hold_replay( $approved, $_POST, $form_type, $ip, $email ); // phpcs:ignore WordPress.Security.NonceVerification
+	}
+
+	/**
+	 * Hold a comment whose time-trap token was used before (WPMAP-219).
+	 *
+	 * A replayed token is held for moderation and logged, never refused: a
+	 * visitor who presses Back after core refused a comment sends it again.
+	 * A stricter decision core already made (spam or trash) is kept.
+	 *
+	 * @param int|string           $approved  The decision so far.
+	 * @param array<string, mixed> $data      The submitted fields.
+	 * @param string               $form_type Form identifier.
+	 * @param string               $ip        Visitor IP address.
+	 * @param string               $email     Submitted e-mail address.
+	 * @return int|string
+	 */
+	private function hold_replay( mixed $approved, array $data, string $form_type, string $ip, string $email ): mixed {
+		if ( $this->timetrap->consume( $data, $form_type ) ) {
+			return $approved;
+		}
+
+		$this->logger->log( 'replay', $form_type, $ip, $email );
+
+		return in_array( $approved, [ 'spam', 'trash' ], true ) ? $approved : 0;
 	}
 
 	/**
@@ -309,7 +333,7 @@ class WordPressIntegration {
 			return 0;
 		}
 
-		return $approved;
+		return $has_token ? $this->hold_replay( $approved, $params, $form_type, $ip, $email ) : $approved;
 	}
 
 	/**
@@ -388,6 +412,10 @@ class WordPressIntegration {
 				'bfas_spam',
 				__( '<strong>Error:</strong> Your registration was blocked as spam. If this is wrong, please contact us.', 'bluefairy-antispam' )
 			);
+		} elseif ( ! $errors->has_errors() && ! $this->timetrap->consume( $_POST, 'wp_register' ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+			// A reused token (WPMAP-219) is logged, not refused: a registration
+			// cannot be held for moderation.
+			$this->logger->log( 'replay', 'wp_register', $ip, $user_email );
 		}
 
 		return $errors;

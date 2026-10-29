@@ -118,6 +118,9 @@ final class Plugin {
 			}
 		);
 
+		add_action( 'rest_api_init', [ $timetrap, 'register_route' ] );
+		add_action( 'wp_enqueue_scripts', [ $timetrap, 'enqueue_script' ] );
+
 		add_filter(
 			'bluefairy_antispam_check',
 			function ( bool $is_spam, array $post_data, string $form_type, string $ip, string $email ) use ( $honeypot, $timetrap ): bool {
@@ -131,6 +134,11 @@ final class Plugin {
 				if ( $timetrap->is_spam( $post_data, $form_type ) ) {
 					$this->logger->log( 'timetrap', $form_type, $ip, $email );
 					return true;
+				}
+				// A reused token is logged, not refused: the form cannot hold a
+				// submission for moderation, and a real visitor can resend one.
+				if ( ! $timetrap->consume( $post_data, $form_type ) ) {
+					$this->logger->log( 'replay', $form_type, $ip, $email );
 				}
 				return false;
 			},
@@ -166,6 +174,7 @@ final class Plugin {
 			'bfas_log_cleanup',
 			function (): void {
 				$this->logger->cleanup_old_logs();
+				TimeTrap::purge_used();
 			}
 		);
 	}

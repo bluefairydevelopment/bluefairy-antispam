@@ -5,7 +5,7 @@ Tags: spam, anti-spam, honeypot, comments, woocommerce
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.2.1
+Stable tag: 1.2.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -20,7 +20,7 @@ We hate spam with a burning passion. We hate it so much we built this plugin for
 **How it works:**
 
 * **Honeypot** — A hidden field is added to your forms. Real humans never see it or fill it in. Bots do. Blocked.
-* **Time trap** — A cryptographically signed timestamp is embedded at page load. Submissions that arrive faster than a human can type are rejected. Bots move fast. Too fast.
+* **Time trap** — A cryptographically signed timestamp is embedded at page load. Submissions that arrive faster than a human can type are rejected. Bots move fast. Too fast. Each form token is single-use: a second comment with the same token is held for moderation.
 * **Stop Forum Spam (optional)** — Cross-reference visitor IPs and emails against the world's largest spam database. Disabled by default. You choose when to turn it on.
 
 No configuration required to get started. Activate and it works. The honeypot and time trap are on by default.
@@ -102,6 +102,10 @@ No data is ever sent without your explicit opt-in.
 
 == Changelog ==
 
+= 1.2.2 =
+* Security: each form token is single-use. A bot could load one page and post with its token for 24 hours; a second comment or review with the same token is now held for moderation and logged as "replay" (never refused). On registration and checkout a replay is logged.
+* Changed: on page load a small script swaps the form token for a fresh one, so visitors of one cached page no longer share a token, and a page cached for more than a day no longer refuses comments. Without JavaScript the page's token works as before.
+
 = 1.2.1 =
 * Fixed: The plugin package no longer includes developer and internal files that were never meant to ship.
 
@@ -144,6 +148,9 @@ No data is ever sent without your explicit opt-in.
 * Initial release. Honeypot, time trap, optional Stop Forum Spam integration, dashboard widget, admin log.
 
 == Upgrade Notice ==
+
+= 1.2.2 =
+Form tokens are single-use: a replayed comment is held for moderation. Adds a small front-end script that fetches a fresh token as the page loads. Pages cached before the upgrade keep working.
 
 = 1.2.1 =
 Removes files that did not belong in the plugin package. No action required.

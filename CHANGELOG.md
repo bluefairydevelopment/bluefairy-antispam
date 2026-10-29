@@ -7,6 +7,14 @@ Versioning: Major.Minor.Patch (major = architecture shift, minor = new feature, 
 
 ---
 
+## [1.2.2] — 2026-10-29
+
+### Security
+- **Form tokens are single-use (WPMAP-219).** A time-trap token was not bound to anything and could be reused for 24 hours, so a bot could load one page, wait 3 seconds and post with that token again and again. `TimeTrap::consume()` now records each token the first time a form passes with it (`bfas_tt_used_*` options, not autoloaded, written with `add_option()` so of two racing submissions only one is first; expired records are deleted by the daily `bfas_log_cleanup`, and by uninstall). A second submission with the same token is a replay: a comment or review is held for moderation, and registration, checkout and the `bluefairy_antispam_check` filter let it through; every replay is logged with the trap `replay`. A replay is never refused, because a visitor who presses Back after WordPress refused a comment sends the same token.
+
+### Changed
+- **A fresh token per page load.** The token nonce is now random per token (a guest's `wp_create_nonce()` is the same for every visitor for 12 hours), and `assets/js/timetrap.js` swaps a page's token for a fresh one from `GET /wp-json/bfas/v1/token?form=<form>` once, as the page loads (`Cache-Control: no-store`). Visitors of one cached page no longer share a token, and a page cached for over a day no longer refuses comments. Nothing the visitor does fetches a token again, so the 3-second clock is never restarted. Without JavaScript the page's own token stays. The signed text is unchanged, so tokens in pages opened or cached before the upgrade still verify.
+
 ## [1.2.1] — 2026-10-27
 
 ### Fixed

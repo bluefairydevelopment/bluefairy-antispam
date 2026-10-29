@@ -258,6 +258,12 @@ class WooCommerceIntegration {
 			return 'sfs';
 		}
 
+		// A reused token (WPMAP-219) is logged, not refused: an account or an
+		// order cannot be held for moderation, and a real shopper can resend.
+		if ( ! $this->timetrap->consume( $_POST, $form_type ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+			$this->logger->log( 'replay', $form_type, $ip, $email );
+		}
+
 		return null;
 	}
 
