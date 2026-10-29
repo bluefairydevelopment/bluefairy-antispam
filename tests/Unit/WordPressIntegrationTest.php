@@ -21,6 +21,8 @@ final class WordPressIntegrationTest extends TestCase
     /** @var list<array{string, string}> */
     private array $logged = [];
 
+    private Logger $logger;
+
     protected function setUp(): void
     {
         $GLOBALS['bfas_test_hooks'] = [];
@@ -59,7 +61,14 @@ final class WordPressIntegrationTest extends TestCase
             return 1;
         });
 
+        $this->logger      = $logger;
         $this->integration = new WordPressIntegration($settings, $logger);
+    }
+
+    /** A fresh integration, as the next HTTP request gets. */
+    private function next_request(): WordPressIntegration
+    {
+        return new WordPressIntegration($this->settings, $this->logger);
     }
 
     protected function tearDown(): void
@@ -314,8 +323,9 @@ final class WordPressIntegrationTest extends TestCase
     {
         $_POST = ['bfas_tk_wp_comment' => $this->aged_token('wp_comment')];
         $this->assertSame(1, $this->integration->validate_comment(1, $this->review(20, 'comment')), 'first use');
+        $this->assertSame(1, $this->integration->validate_comment(1, $this->review(20, 'comment')), 'core checks it again in the same request');
         $this->assertSame([], $this->logged);
-        $this->assertSame(0, $this->integration->validate_comment(1, $this->review(20, 'comment')), 'second use held');
+        $this->assertSame(0, $this->next_request()->validate_comment(1, $this->review(20, 'comment')), 'second use held');
         $this->assertSame([['replay', 'wp_comment']], $this->logged);
     }
 
@@ -323,13 +333,14 @@ final class WordPressIntegrationTest extends TestCase
     {
         $_POST = ['bfas_tk_wp_comment' => $this->aged_token('wp_comment')];
         $this->integration->validate_comment(1, $this->review(20, 'comment'));
-        $this->assertSame('spam', $this->integration->validate_comment('spam', $this->review(20, 'comment')));
+        $this->assertSame('spam', $this->next_request()->validate_comment('spam', $this->review(20, 'comment')));
     }
 
     public function test_an_api_comment_reusing_a_token_is_held(): void
     {
         $params = ['bfas_tk_wp_comment' => $this->aged_token('wp_comment')];
         $this->assertSame(1, $this->core_api_comment($params));
+        $this->integration = $this->next_request();
         $this->assertSame(0, $this->core_api_comment($params));
         $this->assertSame([['replay', 'wp_comment']], $this->logged);
     }
@@ -339,7 +350,7 @@ final class WordPressIntegrationTest extends TestCase
         $_POST = ['bfas_tk_wp_register' => $this->aged_token('wp_register')];
         $this->assertFalse($this->integration->validate_registration(new \WP_Error(), 'sam', 'sam@example.com')->has_errors());
         $this->assertSame([], $this->logged);
-        $this->assertFalse($this->integration->validate_registration(new \WP_Error(), 'sam', 'sam@example.com')->has_errors());
+        $this->assertFalse($this->next_request()->validate_registration(new \WP_Error(), 'sam', 'sam@example.com')->has_errors());
         $this->assertSame([['replay', 'wp_register']], $this->logged);
     }
 
@@ -349,7 +360,7 @@ final class WordPressIntegrationTest extends TestCase
         $errors = new \WP_Error();
         $errors->add('username_exists', 'taken');
         $this->integration->validate_registration($errors, 'sam', 'sam@example.com');
-        $this->integration->validate_registration(new \WP_Error(), 'sam', 'sam@example.com');
+        $this->next_request()->validate_registration(new \WP_Error(), 'sam', 'sam@example.com');
         $this->assertSame([], $this->logged);
     }
 }
