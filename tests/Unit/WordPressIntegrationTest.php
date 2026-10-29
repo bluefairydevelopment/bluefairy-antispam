@@ -18,6 +18,9 @@ final class WordPressIntegrationTest extends TestCase
     private bool $sfs = false;
     private bool $timetrap = true;
 
+    /** @var list<array{string, string}> */
+    private array $logged = [];
+
     protected function setUp(): void
     {
         $GLOBALS['bfas_test_hooks'] = [];
@@ -28,6 +31,12 @@ final class WordPressIntegrationTest extends TestCase
         $GLOBALS['bfas_test_rest'] = false;
         $_POST                     = [];
         $_SERVER['REMOTE_ADDR']    = '203.0.113.9';
+        // Used-token records (WPMAP-219) from an earlier test would turn its token into a replay here.
+        $GLOBALS['bfas_test_options'] = array_filter(
+            $GLOBALS['bfas_test_options'] ?? [],
+            static fn (string $name): bool => ! str_starts_with($name, 'bfas_tt_used_'),
+            ARRAY_FILTER_USE_KEY
+        );
 
         $settings = $this->createMock(Settings::class);
         $settings->method('get')->willReturnCallback(
@@ -44,7 +53,11 @@ final class WordPressIntegrationTest extends TestCase
         $this->settings = $settings;
 
         $logger = $this->createMock(Logger::class);
-        $logger->method('log')->willReturn(1);
+        $this->logged = [];
+        $logger->method('log')->willReturnCallback(function (string $trap, string $form): int {
+            $this->logged[] = [$trap, $form];
+            return 1;
+        });
 
         $this->integration = new WordPressIntegration($settings, $logger);
     }
@@ -291,5 +304,52 @@ final class WordPressIntegrationTest extends TestCase
         $GLOBALS['bfas_test_transients']['bfas_sfs_' . substr(md5('198.51.100.23sam@example.com'), 0, 12)] = 1;
         $GLOBALS['bfas_test_transients']['bfas_sfs_' . substr(md5('104.16.0.1sam@example.com'), 0, 12)]    = 0;
         $this->assertInstanceOf(\WP_Error::class, $this->core_api_comment(['content' => 'x']));
+    }
+
+    // ------------------------------------------------------------------ //
+    // Replayed tokens (WPMAP-219)
+    // ------------------------------------------------------------------ //
+
+    public function test_a_classic_comment_reusing_a_token_is_held_and_logged_not_refused(): void
+    {
+        $_POST = ['bfas_tk_wp_comment' => $this->aged_token('wp_comment')];
+        $this->assertSame(1, $this->integration->validate_comment(1, $this->review(20, 'comment')), 'first use');
+        $this->assertSame([], $this->logged);
+        $this->assertSame(0, $this->integration->validate_comment(1, $this->review(20, 'comment')), 'second use held');
+        $this->assertSame([['replay', 'wp_comment']], $this->logged);
+    }
+
+    public function test_a_replayed_comment_core_marked_spam_stays_spam(): void
+    {
+        $_POST = ['bfas_tk_wp_comment' => $this->aged_token('wp_comment')];
+        $this->integration->validate_comment(1, $this->review(20, 'comment'));
+        $this->assertSame('spam', $this->integration->validate_comment('spam', $this->review(20, 'comment')));
+    }
+
+    public function test_an_api_comment_reusing_a_token_is_held(): void
+    {
+        $params = ['bfas_tk_wp_comment' => $this->aged_token('wp_comment')];
+        $this->assertSame(1, $this->core_api_comment($params));
+        $this->assertSame(0, $this->core_api_comment($params));
+        $this->assertSame([['replay', 'wp_comment']], $this->logged);
+    }
+
+    public function test_a_registration_reusing_a_token_is_logged_not_refused(): void
+    {
+        $_POST = ['bfas_tk_wp_register' => $this->aged_token('wp_register')];
+        $this->assertFalse($this->integration->validate_registration(new \WP_Error(), 'sam', 'sam@example.com')->has_errors());
+        $this->assertSame([], $this->logged);
+        $this->assertFalse($this->integration->validate_registration(new \WP_Error(), 'sam', 'sam@example.com')->has_errors());
+        $this->assertSame([['replay', 'wp_register']], $this->logged);
+    }
+
+    public function test_a_registration_another_check_refused_does_not_use_up_its_token(): void
+    {
+        $_POST  = ['bfas_tk_wp_register' => $this->aged_token('wp_register')];
+        $errors = new \WP_Error();
+        $errors->add('username_exists', 'taken');
+        $this->integration->validate_registration($errors, 'sam', 'sam@example.com');
+        $this->integration->validate_registration(new \WP_Error(), 'sam', 'sam@example.com');
+        $this->assertSame([], $this->logged);
     }
 }

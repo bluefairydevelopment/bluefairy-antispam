@@ -10,6 +10,13 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 
 // ---------------------------------------------------------------------------
+if (! defined('BFAS_URL')) {
+    define('BFAS_URL', 'https://example.test/wp-content/plugins/bluefairy-antispam/');
+}
+if (! defined('BFAS_VERSION')) {
+    define('BFAS_VERSION', 'test');
+}
+
 // WordPress function stubs
 // ---------------------------------------------------------------------------
 
@@ -34,6 +41,10 @@ if (! function_exists('add_option')) {
     {
         $GLOBALS['bfas_test_add_options'][$option] = ['value' => $value, 'autoload' => $autoload];
         if (! empty($GLOBALS['bfas_test_options_read_only'])) {
+            return false;
+        }
+        // Like core: an existing option is never overwritten, and the call fails.
+        if (array_key_exists($option, $GLOBALS['bfas_test_options'] ?? [])) {
             return false;
         }
         $GLOBALS['bfas_test_options'][$option] = $value;
@@ -194,6 +205,16 @@ if (! class_exists('WP_Error')) {
         public function get_error_message(): string { return $this->message; }
 
         public function get_error_data(): mixed { return $this->data; }
+
+        public function add(string $code, string $message): void
+        {
+            if ('' === $this->code) {
+                $this->code    = $code;
+                $this->message = $message;
+            }
+        }
+
+        public function has_errors(): bool { return '' !== $this->code; }
     }
 }
 
@@ -261,5 +282,28 @@ if (! class_exists('WP_REST_Response')) {
 
         /** @return array<string, string> */
         public function get_headers(): array { return $this->headers; }
+
+        public function header(string $key, string $value): void { $this->headers[$key] = $value; }
     }
+}
+
+if (! function_exists('register_rest_route')) {
+    /** @param array<string, mixed> $args */
+    function register_rest_route(string $namespace, string $route, array $args = []): bool
+    {
+        $GLOBALS['bfas_test_routes'][$namespace . $route] = $args;
+        return true;
+    }
+}
+
+if (! function_exists('wp_add_inline_script')) {
+    function wp_add_inline_script(string $handle, string $data, string $position = 'after'): bool
+    {
+        $GLOBALS['bfas_test_inline_scripts'][$handle][] = $data;
+        return true;
+    }
+}
+
+if (! function_exists('wp_json_encode')) {
+    function wp_json_encode(mixed $data): string|false { return json_encode($data); }
 }

@@ -29,7 +29,7 @@ Optional configuration: **Tools > Anti-Spam**
 | Feature | Default | Notes |
 |---------|---------|-------|
 | Honeypot | On | CSS-hidden field; bots fill it in |
-| Time trap | On | HMAC-signed token; blocks submissions under 3 seconds |
+| Time trap | On | HMAC-signed, single-use token; blocks submissions under 3 seconds; a reused token is held for moderation |
 | Stop Forum Spam check | Off | Opt-in — sends IP/email to external API |
 | SFS reporting | Off | Requires SFS API key |
 | Dashboard widget | Always | Block stats in wp-admin |

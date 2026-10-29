@@ -23,6 +23,11 @@ delete_option( 'bfas_settings' );
 delete_option( 'bfas_hmac_secret' );
 delete_option( 'bfas_sfs_api_key' );
 
+// Delete the used-token records (WPMAP-219).
+$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+	"DELETE FROM `{$wpdb->options}` WHERE `option_name` LIKE 'bfas\\_tt\\_used\\_%'"
+);
+
 // Delete all transients with the bfas_ prefix.
 $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 	"DELETE FROM `{$wpdb->options}` WHERE `option_name` LIKE '_transient_bfas_%' OR `option_name` LIKE '_transient_timeout_bfas_%'"

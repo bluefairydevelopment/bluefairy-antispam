@@ -48,7 +48,11 @@ When the page loads, a signed token goes into a hidden field. It holds a nonce, 
 
 On submit, the plugin checks the signature and how long the visitor took. A form sent in under 3 seconds (the default; you can set 1 to 120) is refused, because bots submit instantly and people take a few seconds. Tokens expire after 24 hours. The form type is part of the signature, so a token from the comment form cannot be reused on the checkout.
 
-The time trap needs no JavaScript and works on cached pages: a page served from a full-page cache carries a token made when the cache was filled, and the 3 seconds count from then. A cached token keeps working for every visitor until it expires after 24 hours, so a page cached for longer than a day refuses logged-out submissions until the cache is refreshed.
+Each form token is single-use. The first submission with a token is checked as usual; a second submission with the same token is a replay. A replayed comment or review is accepted but **held for moderation**, never published straight away and never refused, and the Spam Log records it with the trap `replay`. On registration and checkout, which cannot be held, a replay is logged and let through. A real visitor rarely sends a token twice: pressing Back and resending after WordPress refused a comment is the usual case, and that comment waits for you in moderation instead of being lost.
+
+The time trap works on cached pages. A page served from a full-page cache carries the token made when the cache was filled, so every visitor of that copy would share it. A small script therefore swaps the token for a fresh one once, as the page loads (a `GET` to `/wp-json/bfas/v1/token`, never cached), and the 3 seconds count from then. Nothing the visitor does afterwards fetches a token again, so autofill and fast typists are timed from the page load as before.
+
+Without JavaScript the page's own token stays and works as before: the first comment with it passes, and later comments from other visitors of the same cached copy are held for moderation. A cached token expires 24 hours after the cache was filled; with JavaScript, visitors get a fresh one regardless.
 
 ---
 
