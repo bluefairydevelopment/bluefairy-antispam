@@ -48,11 +48,12 @@ class TimeTrap {
 	private Settings $settings;
 
 	/**
-	 * Used-token records this request created. WordPress runs
+	 * The answer consume() gave per token in this request. WordPress runs
 	 * pre_comment_approved twice for one comment (wp_allow_comment(), then
-	 * wp_check_comment_data()), so the same submission must stay first.
+	 * wp_check_comment_data()), so the same submission must get the same
+	 * answer: first stays first, a replay stays a replay.
 	 *
-	 * @var array<string, true>
+	 * @var array<string, bool>
 	 */
 	private array $consumed = [];
 
@@ -258,29 +259,53 @@ class TimeTrap {
 			return true;
 		}
 
+		[ $name, $minted ] = $this->record( $post_data, $form_type );
+		if ( '' === $name ) {
+			return true;
+		}
+
+		if ( ! isset( $this->consumed[ $name ] ) ) {
+			$this->consumed[ $name ] = add_option( $name, (string) ( $minted + self::LIFETIME ), '', false );
+		}
+
+		return $this->consumed[ $name ];
+	}
+
+	/**
+	 * Whether this request already answered consume() for the submitted token.
+	 * Lets a caller that is run twice for one submission log a replay once.
+	 *
+	 * @param array<string, mixed> $post_data Submitted form data.
+	 * @param string               $form_type The form identifier.
+	 */
+	public function seen( array $post_data, string $form_type ): bool {
+		$name = $this->record( $post_data, $form_type )[0];
+
+		return '' !== $name && isset( $this->consumed[ $name ] );
+	}
+
+	/**
+	 * The used-token record name for the submitted token and when the token
+	 * was minted; the name is '' when there is no token to record.
+	 *
+	 * @param array<string, mixed> $post_data Submitted form data.
+	 * @param string               $form_type The form identifier.
+	 * @return array{0: string, 1: int}
+	 */
+	private function record( array $post_data, string $form_type ): array {
 		$field = 'bfas_tk_' . $form_type;
 		$token = isset( $post_data[ $field ] ) && is_string( $post_data[ $field ] ) ? $post_data[ $field ] : '';
 		if ( '' === $token ) {
-			return true;
+			return [ '', 0 ];
 		}
 
 		$decoded = (string) base64_decode( $token, true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Decodes the signed token minted above.
 		$parts   = explode( '|', $decoded, 3 );
 		if ( 3 !== count( $parts ) ) {
-			return true;
+			return [ '', 0 ];
 		}
 
-		$name = self::USED_PREFIX . substr( hash( 'sha256', $form_type . '|' . $parts[2] ), 0, 40 );
-
-		if ( isset( $this->consumed[ $name ] ) ) {
-			return true;
-		}
-		if ( ! add_option( $name, (string) ( (int) $parts[1] + self::LIFETIME ), '', false ) ) {
-			return false;
-		}
-		$this->consumed[ $name ] = true;
-
-		return true;
+		return [ self::USED_PREFIX . substr( hash( 'sha256', $form_type . '|' . $parts[2] ), 0, 40 ), (int) $parts[1] ];
 	}
 
 	/**

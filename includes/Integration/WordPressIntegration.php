@@ -239,11 +239,14 @@ class WordPressIntegration {
 	 * @return int|string
 	 */
 	private function hold_replay( mixed $approved, array $data, string $form_type, string $ip, string $email ): mixed {
+		$logged = $this->timetrap->seen( $data, $form_type );
 		if ( $this->timetrap->consume( $data, $form_type ) ) {
 			return $approved;
 		}
 
-		$this->logger->log( 'replay', $form_type, $ip, $email );
+		if ( ! $logged ) {
+			$this->logger->log( 'replay', $form_type, $ip, $email );
+		}
 
 		return in_array( $approved, [ 'spam', 'trash' ], true ) ? $approved : 0;
 	}

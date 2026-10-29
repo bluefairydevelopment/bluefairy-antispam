@@ -325,8 +325,10 @@ final class WordPressIntegrationTest extends TestCase
         $this->assertSame(1, $this->integration->validate_comment(1, $this->review(20, 'comment')), 'first use');
         $this->assertSame(1, $this->integration->validate_comment(1, $this->review(20, 'comment')), 'core checks it again in the same request');
         $this->assertSame([], $this->logged);
-        $this->assertSame(0, $this->next_request()->validate_comment(1, $this->review(20, 'comment')), 'second use held');
-        $this->assertSame([['replay', 'wp_comment']], $this->logged);
+        $next = $this->next_request();
+        $this->assertSame(0, $next->validate_comment(1, $this->review(20, 'comment')), 'second use held');
+        $this->assertSame(0, $next->validate_comment(1, $this->review(20, 'comment')), 'and held when core checks it again');
+        $this->assertSame([['replay', 'wp_comment']], $this->logged, 'logged once');
     }
 
     public function test_a_replayed_comment_core_marked_spam_stays_spam(): void
