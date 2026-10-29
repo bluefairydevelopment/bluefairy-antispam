@@ -18,3 +18,9 @@ blueprint.json
 phpstan.neon
 /.github
 /SECURITY.md
+
+# Only the features guide PDF ships from docs/ (2026-10-28). docs/images/,
+# docs/screenshots/ and every other docs/ file are build inputs or internal
+# notes, not product. Last match wins: the second line re-includes the guide.
+/docs/*
+!/docs/*FeaturesGuide.pdf
