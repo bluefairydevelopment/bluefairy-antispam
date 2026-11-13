@@ -75,7 +75,10 @@ if (! function_exists('apply_filters')) {
 
 if (! function_exists('do_action')) {
     /** @param mixed ...$args */
-    function do_action(string $tag, mixed ...$args): void {}
+    function do_action(string $tag, mixed ...$args): void
+    {
+        $GLOBALS['bfas_test_actions'][] = [$tag, $args];
+    }
 }
 
 if (! function_exists('wp_generate_password')) {
@@ -306,4 +309,62 @@ if (! function_exists('wp_add_inline_script')) {
 
 if (! function_exists('wp_json_encode')) {
     function wp_json_encode(mixed $data): string|false { return json_encode($data); }
+}
+
+// ---------------------------------------------------------------------------
+// Scheduling and HTTP stubs for SfsReporter (WPMAP-349). wp_remote_post never
+// touches the network: it records the call and returns the canned response in
+// $GLOBALS['bfas_test_http_response'] (a WP_Error when none is set).
+// ---------------------------------------------------------------------------
+
+if (! function_exists('set_transient')) {
+    function set_transient(string $transient, mixed $value, int $expiration = 0): bool
+    {
+        $GLOBALS['bfas_test_transients'][$transient] = $value;
+        return true;
+    }
+}
+
+if (! function_exists('wp_schedule_single_event')) {
+    /** @param array<int, mixed> $args */
+    function wp_schedule_single_event(int $timestamp, string $hook, array $args = [], bool $wp_error = false): bool
+    {
+        $GLOBALS['bfas_test_scheduled'][] = ['hook' => $hook, 'args' => $args];
+        return true;
+    }
+}
+
+if (! function_exists('wp_remote_post')) {
+    /**
+     * @param array<string, mixed> $args
+     * @return array<string, mixed>|WP_Error
+     */
+    function wp_remote_post(string $url, array $args = []): array|WP_Error
+    {
+        $GLOBALS['bfas_test_http_requests'][] = ['url' => $url, 'args' => $args];
+        return $GLOBALS['bfas_test_http_response'] ?? new WP_Error('http_request_failed', 'stubbed: no network in tests');
+    }
+}
+
+if (! function_exists('wp_remote_retrieve_response_code')) {
+    /** @param array<string, mixed>|WP_Error $response */
+    function wp_remote_retrieve_response_code(array|WP_Error $response): int|string
+    {
+        return is_array($response) ? (int) ($response['response']['code'] ?? 0) : '';
+    }
+}
+
+if (! function_exists('wp_remote_retrieve_body')) {
+    /** @param array<string, mixed>|WP_Error $response */
+    function wp_remote_retrieve_body(array|WP_Error $response): string
+    {
+        return is_array($response) ? (string) ($response['body'] ?? '') : '';
+    }
+}
+
+if (! function_exists('wp_strip_all_tags')) {
+    function wp_strip_all_tags(string $text, bool $remove_breaks = false): string
+    {
+        return trim(strip_tags($text));
+    }
 }

@@ -22,6 +22,11 @@ use BlueFairy\AntiSpam\Settings;
 class SfsReporter {
 
 	/**
+	 * Stop Forum Spam add endpoint (https://www.stopforumspam.com/usage).
+	 */
+	private const ADD_URL = 'https://www.stopforumspam.com/add';
+
+	/**
 	 * Plugin settings.
 	 *
 	 * @var Settings
@@ -84,31 +89,62 @@ class SfsReporter {
 	/**
 	 * Execute the HTTP report to Stop Forum Spam.
 	 *
+	 * Follows https://www.stopforumspam.com/usage ("Adding to the Database"):
+	 * POST to /add with username, ip_addr, email, evidence and api_key. SFS needs
+	 * all of username, email and IP, so a row without them is not sent. The
+	 * username is the e-mail's local part, the one name every blocked form has.
+	 * A 200 is success; anything else fires `bfas_sfs_report_refused` with the
+	 * status (0 for a transport error) and SFS's reason, and the row stays unmarked.
+	 *
 	 * @param string $ip     Visitor IP address.
 	 * @param string $email  Raw email address.
 	 * @param int    $log_id DB row ID to mark as reported on success.
 	 */
 	public function do_report( string $ip, string $email, int $log_id ): void {
-		$api_key = $this->settings->get_sfs_api_key();
-		if ( '' === $api_key ) {
+		$api_key  = $this->settings->get_sfs_api_key();
+		$username = (string) strstr( $email, '@', true );
+		if ( '' === $api_key || '' === $ip || '' === $username ) {
 			return;
 		}
 
 		$response = wp_remote_post(
-			'https://www.stopforumspam.com/add.php',
+			self::ADD_URL,
 			[
 				'timeout' => 10,
 				'body'    => [
-					'api_key'  => $api_key,
-					'ip'       => $ip,
+					'username' => $username,
+					'ip_addr'  => $ip,
 					'email'    => $email,
 					'evidence' => 'Blocked by BlueFairy Anti-Spam',
+					'api_key'  => $api_key,
 				],
 			]
 		);
 
-		if ( ! is_wp_error( $response ) && wp_remote_retrieve_response_code( $response ) === 200 ) {
-			$this->logger->mark_reported( $log_id );
+		if ( is_wp_error( $response ) ) {
+			do_action( 'bfas_sfs_report_refused', 0, $response->get_error_message(), $log_id );
+			return;
 		}
+
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		if ( 200 === $code ) {
+			$this->logger->mark_reported( $log_id );
+			return;
+		}
+
+		do_action( 'bfas_sfs_report_refused', $code, self::refusal_reason( wp_remote_retrieve_body( $response ) ), $log_id );
+	}
+
+	/**
+	 * SFS gives its reason for a refusal inside a paragraph tag; fall back to the body.
+	 *
+	 * @param string $body Response body.
+	 */
+	private static function refusal_reason( string $body ): string {
+		if ( preg_match( '#<p[^>]*>(.*?)</p>#is', $body, $m ) ) {
+			$body = $m[1];
+		}
+
+		return trim( wp_strip_all_tags( $body ) );
 	}
 }
