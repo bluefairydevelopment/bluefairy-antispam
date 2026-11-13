@@ -15,10 +15,10 @@ use BlueFairy\AntiSpam\Settings;
 /**
  * Asynchronously reports confirmed spammers to Stop Forum Spam.
  *
- * Reporting is deduped via a 24-hour transient so the same IP+email is
- * reported at most once a day once Stop Forum Spam accepts a report; after
- * a failed report the window is cut to an hour, so a later block retries. Reports are scheduled via WP-Cron
- * to avoid adding latency to the blocking response.
+ * Reporting is deduped via a transient: once Stop Forum Spam accepts a
+ * report, the same IP+email is not reported again for a day; after a failed
+ * report the window is cut to an hour, so a later block retries. Reports are
+ * scheduled via WP-Cron to avoid adding latency to the blocking response.
  */
 class SfsReporter {
 
