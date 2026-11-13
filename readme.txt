@@ -5,7 +5,7 @@ Tags: spam, anti-spam, honeypot, comments, woocommerce
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.2.2
+Stable tag: 1.2.3
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -77,7 +77,7 @@ Yes. With Auto-detect Cloudflare on (the default), the plugin uses the visitor a
 
 = When I mark a comment as spam in the admin, does the plugin report it? =
 
-Yes — if Stop Forum Spam is enabled and an API key is configured, marking a comment as spam from the Comments list or post edit screen will automatically report the commenter's IP and email to SFS.
+Yes — if Stop Forum Spam is enabled and an API key is configured, marking a comment as spam from the Comments list or post edit screen will automatically report the commenter's IP and email to SFS, with the part of the email before the @ as the username. A submission without an email address or IP address is not reported, because SFS requires both.
 
 == Third Party Services ==
 
@@ -87,7 +87,7 @@ This plugin can optionally connect to the Stop Forum Spam service (https://www.s
 
 When enabled:
 * Visitor IP addresses and email addresses are sent to `https://api.stopforumspam.org/api` for spam lookup.
-* If you provide an API key, blocked visitors' IP and email may be reported to `https://www.stopforumspam.com/add.php`.
+* If you provide an API key, blocked visitors' IP address, email address and a username (the part of the email before the @) may be reported to `https://www.stopforumspam.com/add`.
 
 Stop Forum Spam privacy policy: https://www.stopforumspam.com/legal
 Stop Forum Spam terms of service: https://www.stopforumspam.com/legal
@@ -101,6 +101,9 @@ No data is ever sent without your explicit opt-in.
 3. Anti-Spam log — searchable, filterable, with Reported to SFS view tab.
 
 == Changelog ==
+
+= 1.2.3 =
+* Fixed: reports to Stop Forum Spam were refused, because they sent the IP address in the wrong field and no username, so no block was ever marked "Reported to SFS". Reports now send the fields Stop Forum Spam requires (username, IP address and email). A refused or failed report is tried again when that visitor is next blocked, after an hour. A submission without an email address is not reported. When a report is refused, the reason is written to the debug log (if WP_DEBUG_LOG is on) and passed to the new `bfas_sfs_report_refused` action.
 
 = 1.2.2 =
 * Security: each form token is single-use. A bot could load one page and post with its token for 24 hours; a second comment or review with the same token is now held for moderation and logged as "replay" (never refused). On registration and checkout a replay is logged.
@@ -148,6 +151,9 @@ No data is ever sent without your explicit opt-in.
 * Initial release. Honeypot, time trap, optional Stop Forum Spam integration, dashboard widget, admin log.
 
 == Upgrade Notice ==
+
+= 1.2.3 =
+Fixes reporting to Stop Forum Spam: reports were refused and never marked as reported. No action required.
 
 = 1.2.2 =
 Form tokens are single-use: a replayed comment is held for moderation. Adds a small front-end script that fetches a fresh token as the page loads. Pages cached before the upgrade keep working.

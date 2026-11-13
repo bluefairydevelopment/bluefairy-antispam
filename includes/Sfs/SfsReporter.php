@@ -15,11 +15,23 @@ use BlueFairy\AntiSpam\Settings;
 /**
  * Asynchronously reports confirmed spammers to Stop Forum Spam.
  *
- * Reporting is deduped via a 24-hour transient so the same IP+email is
- * never reported twice within a day. Reports are scheduled via WP-Cron
- * to avoid adding latency to the blocking response.
+ * Reporting is deduped via a transient: once Stop Forum Spam accepts a
+ * report, the same IP+email is not reported again for a day; after a failed
+ * report the window is cut to an hour, so a later block retries. Reports are
+ * scheduled via WP-Cron to avoid adding latency to the blocking response.
  */
 class SfsReporter {
+
+	/**
+	 * Seconds before a visitor whose report failed can be reported again.
+	 * A wait, not zero, so a revoked key or a rate limit is not hit on every block.
+	 */
+	private const RETRY_AFTER = 3600;
+
+	/**
+	 * Stop Forum Spam add endpoint (https://www.stopforumspam.com/usage).
+	 */
+	private const ADD_URL = 'https://www.stopforumspam.com/add';
 
 	/**
 	 * Plugin settings.
@@ -54,7 +66,7 @@ class SfsReporter {
 	}
 
 	/**
-	 * Schedule a report if SFS is enabled and reporting has not been done recently.
+	 * Schedule a report if SFS is enabled and none is queued, accepted or waiting to retry.
 	 *
 	 * @param string $ip         Visitor IP address.
 	 * @param string $email      Raw email address.
@@ -65,18 +77,19 @@ class SfsReporter {
 			return;
 		}
 
-		if ( $this->settings->get_sfs_api_key() === '' ) {
+		if ( $this->settings->get_sfs_api_key() === '' || ! self::reportable( $ip, $email ) ) {
 			return;
 		}
 
-		$email_hash = hash_hmac( 'sha256', strtolower( trim( $email ) ), $this->settings->get_hmac_secret() );
-		$dedup_key  = 'bfas_sfs_rep_' . substr( md5( $ip . $email_hash ), 0, 12 );
+		$dedup_key = $this->dedup_key( $ip, $email );
 
 		if ( get_transient( $dedup_key ) ) {
-			return; // Already reported recently.
+			return; // Reported, or a report queued, within the last 24 hours.
 		}
 
-		set_transient( $dedup_key, 1, 86400 ); // 24-hour dedup window
+		// Held while the report is queued; do_report() cuts it to RETRY_AFTER if
+		// the report fails, so only an accepted report blocks another for a day.
+		set_transient( $dedup_key, 1, 86400 );
 
 		wp_schedule_single_event( time(), 'bfas_sfs_report_event', [ $ip, $email, $log_id ] );
 	}
@@ -84,31 +97,134 @@ class SfsReporter {
 	/**
 	 * Execute the HTTP report to Stop Forum Spam.
 	 *
+	 * Follows https://www.stopforumspam.com/usage ("Adding to the Database"):
+	 * POST to /add with username, ip_addr, email, evidence and api_key. SFS needs
+	 * all of username, email and IP, so a row without them is not sent. The
+	 * username is the e-mail's local part, the one name every blocked form has.
+	 * A 200 is success; anything else fires `bfas_sfs_report_refused` with the
+	 * status (0 for a transport error), SFS's reason (untrusted text, at most 200
+	 * characters) and the row ID, is written to the debug log when WP_DEBUG_LOG
+	 * is on, the row stays unmarked, and the 24-hour dedup is cut to an hour so
+	 * a later block of the same visitor reports again.
+	 *
 	 * @param string $ip     Visitor IP address.
 	 * @param string $email  Raw email address.
 	 * @param int    $log_id DB row ID to mark as reported on success.
 	 */
 	public function do_report( string $ip, string $email, int $log_id ): void {
 		$api_key = $this->settings->get_sfs_api_key();
-		if ( '' === $api_key ) {
+		$email   = trim( $email );
+		if ( '' === $api_key || ! self::reportable( $ip, $email ) ) {
 			return;
 		}
 
 		$response = wp_remote_post(
-			'https://www.stopforumspam.com/add.php',
+			self::ADD_URL,
 			[
 				'timeout' => 10,
 				'body'    => [
-					'api_key'  => $api_key,
-					'ip'       => $ip,
+					'username' => self::username( $email ),
+					'ip_addr'  => $ip,
 					'email'    => $email,
 					'evidence' => 'Blocked by BlueFairy Anti-Spam',
+					'api_key'  => $api_key,
 				],
 			]
 		);
 
-		if ( ! is_wp_error( $response ) && wp_remote_retrieve_response_code( $response ) === 200 ) {
-			$this->logger->mark_reported( $log_id );
+		if ( is_wp_error( $response ) ) {
+			$this->retry_later( $ip, $email );
+			self::refused( 0, $response->get_error_message(), $log_id );
+			return;
 		}
+
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		if ( 200 === $code ) {
+			$this->logger->mark_reported( $log_id );
+			return;
+		}
+
+		$this->retry_later( $ip, $email );
+		self::refused( $code, self::refusal_reason( wp_remote_retrieve_body( $response ) ), $log_id );
+	}
+
+	/**
+	 * After a failed report, let the visitor be reported again in RETRY_AFTER seconds.
+	 *
+	 * @param string $ip    Visitor IP address.
+	 * @param string $email Email address.
+	 * @return void
+	 */
+	private function retry_later( string $ip, string $email ): void {
+		set_transient( $this->dedup_key( $ip, $email ), 1, self::RETRY_AFTER );
+	}
+
+	/**
+	 * The transient that keeps one IP + e-mail pair from being reported twice a day.
+	 *
+	 * @param string $ip    Visitor IP address.
+	 * @param string $email Email address.
+	 * @return string
+	 */
+	private function dedup_key( string $ip, string $email ): string {
+		$email_hash = hash_hmac( 'sha256', strtolower( trim( $email ) ), $this->settings->get_hmac_secret() );
+
+		return 'bfas_sfs_rep_' . substr( md5( $ip . $email_hash ), 0, 12 );
+	}
+
+	/**
+	 * Whether a row carries everything SFS requires: an IP and an e-mail with a local part.
+	 *
+	 * @param string $ip    Visitor IP address.
+	 * @param string $email Raw email address.
+	 * @return bool
+	 */
+	private static function reportable( string $ip, string $email ): bool {
+		return '' !== trim( $ip ) && '' !== self::username( trim( $email ) );
+	}
+
+	/**
+	 * The username sent to SFS: the e-mail's local part ('' when there is none).
+	 *
+	 * @param string $email Email address.
+	 * @return string
+	 */
+	private static function username( string $email ): string {
+		return (string) strstr( $email, '@', true );
+	}
+
+	/**
+	 * Announce a refused report, and write it to the debug log when WP_DEBUG_LOG is on.
+	 *
+	 * The reason is untrusted text from a remote server: escape it before output.
+	 *
+	 * @param int    $code   HTTP status, 0 for a transport error.
+	 * @param string $reason Reason given, at most 200 characters.
+	 * @param int    $log_id Log row ID.
+	 * @return void
+	 */
+	private static function refused( int $code, string $reason, int $log_id ): void {
+		// One line: remote text must not be able to forge debug-log lines.
+		$reason = mb_substr( trim( (string) preg_replace( '/\s+/', ' ', $reason ) ), 0, 200 );
+		do_action( 'bfas_sfs_report_refused', $code, $reason, $log_id );
+
+		if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- opt-in debug log only.
+			error_log( sprintf( 'BlueFairy Anti-Spam: Stop Forum Spam refused report for log row %d (HTTP %d): %s', $log_id, $code, $reason ) );
+		}
+	}
+
+	/**
+	 * SFS gives its reason for a refusal inside a paragraph tag; fall back to the body.
+	 *
+	 * @param string $body Response body.
+	 * @return string Plain text.
+	 */
+	private static function refusal_reason( string $body ): string {
+		if ( preg_match( '#<p[^>]*>(.*?)</p>#is', $body, $paragraph ) ) {
+			$body = $paragraph[1];
+		}
+
+		return wp_strip_all_tags( $body );
 	}
 }
