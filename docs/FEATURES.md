@@ -79,7 +79,7 @@ Stop Forum Spam keeps a shared database of known spammer IP addresses and e-mail
 - An answer is cached for 7 days for a listed visitor and 1 hour for a clean one.
 - After 5 failed lookups in a row the check is skipped for 10 minutes, so an outage never blocks your forms.
 - The confidence threshold (default 1, range 0 to 100) decides how sure Stop Forum Spam must be before a visitor is refused. 0 refuses any match.
-- With a free Stop Forum Spam API key, you can report blocked visitors back to them. A report sends the visitor's IP address, email address and the part of the email before the @ as the username; a submission without an email address is not reported.
+- With a free Stop Forum Spam API key, visitors refused because Stop Forum Spam lists them, and comments you mark as spam, are reported back to them. Honeypot and time-trap blocks are not reported. A report sends the visitor's IP address, email address and the part of the email before the @ as the username; a submission without an email address is not reported.
 
 ---
 
