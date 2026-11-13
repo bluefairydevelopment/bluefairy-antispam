@@ -320,7 +320,8 @@ if (! function_exists('wp_json_encode')) {
 if (! function_exists('set_transient')) {
     function set_transient(string $transient, mixed $value, int $expiration = 0): bool
     {
-        $GLOBALS['bfas_test_transients'][$transient] = $value;
+        $GLOBALS['bfas_test_transients'][$transient]    = $value;
+        $GLOBALS['bfas_test_transient_ttl'][$transient] = $expiration;
         return true;
     }
 }
@@ -366,14 +367,5 @@ if (! function_exists('wp_strip_all_tags')) {
     function wp_strip_all_tags(string $text, bool $remove_breaks = false): string
     {
         return trim(strip_tags($text));
-    }
-}
-
-if (! function_exists('delete_transient')) {
-    function delete_transient(string $transient): bool
-    {
-        $existed = array_key_exists($transient, $GLOBALS['bfas_test_transients'] ?? []);
-        unset($GLOBALS['bfas_test_transients'][$transient]);
-        return $existed;
     }
 }

@@ -16,11 +16,17 @@ use BlueFairy\AntiSpam\Settings;
  * Asynchronously reports confirmed spammers to Stop Forum Spam.
  *
  * Reporting is deduped via a 24-hour transient so the same IP+email is
- * never reported twice within a day; a failed report releases it so the
- * next block can try again. Reports are scheduled via WP-Cron
+ * reported at most once a day once Stop Forum Spam accepts a report; after
+ * a failed report the window is cut to an hour, so a later block retries. Reports are scheduled via WP-Cron
  * to avoid adding latency to the blocking response.
  */
 class SfsReporter {
+
+	/**
+	 * Seconds before a visitor whose report failed can be reported again.
+	 * A wait, not zero, so a revoked key or a rate limit is not hit on every block.
+	 */
+	private const RETRY_AFTER = 3600;
 
 	/**
 	 * Stop Forum Spam add endpoint (https://www.stopforumspam.com/usage).
@@ -60,7 +66,7 @@ class SfsReporter {
 	}
 
 	/**
-	 * Schedule a report if SFS is enabled and reporting has not been done recently.
+	 * Schedule a report if SFS is enabled and none is queued, accepted or waiting to retry.
 	 *
 	 * @param string $ip         Visitor IP address.
 	 * @param string $email      Raw email address.
@@ -81,8 +87,8 @@ class SfsReporter {
 			return; // Reported, or a report queued, within the last 24 hours.
 		}
 
-		// Held while the report is queued; released if it fails (do_report()),
-		// so only an accepted report blocks another for 24 hours.
+		// Held while the report is queued; do_report() cuts it to RETRY_AFTER if
+		// the report fails, so only an accepted report blocks another for a day.
 		set_transient( $dedup_key, 1, 86400 );
 
 		wp_schedule_single_event( time(), 'bfas_sfs_report_event', [ $ip, $email, $log_id ] );
@@ -98,8 +104,8 @@ class SfsReporter {
 	 * A 200 is success; anything else fires `bfas_sfs_report_refused` with the
 	 * status (0 for a transport error), SFS's reason (untrusted text, at most 200
 	 * characters) and the row ID, is written to the debug log when WP_DEBUG_LOG
-	 * is on, the row stays unmarked, and the 24-hour dedup is released so the
-	 * next block of the same visitor can report again.
+	 * is on, the row stays unmarked, and the 24-hour dedup is cut to an hour so
+	 * a later block of the same visitor reports again.
 	 *
 	 * @param string $ip     Visitor IP address.
 	 * @param string $email  Raw email address.
@@ -127,7 +133,7 @@ class SfsReporter {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			delete_transient( $this->dedup_key( $ip, $email ) );
+			$this->retry_later( $ip, $email );
 			self::refused( 0, $response->get_error_message(), $log_id );
 			return;
 		}
@@ -138,8 +144,19 @@ class SfsReporter {
 			return;
 		}
 
-		delete_transient( $this->dedup_key( $ip, $email ) );
+		$this->retry_later( $ip, $email );
 		self::refused( $code, self::refusal_reason( wp_remote_retrieve_body( $response ) ), $log_id );
+	}
+
+	/**
+	 * After a failed report, let the visitor be reported again in RETRY_AFTER seconds.
+	 *
+	 * @param string $ip    Visitor IP address.
+	 * @param string $email Email address.
+	 * @return void
+	 */
+	private function retry_later( string $ip, string $email ): void {
+		set_transient( $this->dedup_key( $ip, $email ), 1, self::RETRY_AFTER );
 	}
 
 	/**
