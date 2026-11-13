@@ -7,6 +7,9 @@ use BlueFairy\AntiSpam\Logger;
 use BlueFairy\AntiSpam\Settings;
 use BlueFairy\AntiSpam\Sfs\SfsReporter;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\PreserveGlobalState;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -49,6 +52,18 @@ final class SfsReporterTest extends TestCase
         $this->settings->method('get_hmac_secret')->willReturn('test-secret');
 
         $this->logger = $this->createMock(Logger::class);
+    }
+
+    protected function tearDown(): void
+    {
+        unset(
+            $GLOBALS['bfas_test_http_requests'],
+            $GLOBALS['bfas_test_http_response'],
+            $GLOBALS['bfas_test_scheduled'],
+            $GLOBALS['bfas_test_actions']
+        );
+        $GLOBALS['bfas_test_transients'] = [];
+        $GLOBALS['bfas_test_hooks']      = [];
     }
 
     private function reporter(): SfsReporter
@@ -141,14 +156,68 @@ final class SfsReporterTest extends TestCase
         $this->assertSame([], $GLOBALS['bfas_test_http_requests']);
     }
 
-    public function test_without_a_usable_email_nothing_is_sent(): void
+    /** @return array<string, array{string, string}> */
+    public static function unreportableRows(): array
     {
         // SFS requires username, email and IP; a report without them is refused.
-        $this->reporter()->do_report('203.0.113.9', '', 7);
-        $this->reporter()->do_report('203.0.113.9', '@example.com', 7);
-        $this->reporter()->do_report('', 'spammer@example.com', 7);
+        return [
+            'no email'         => ['203.0.113.9', ''],
+            'whitespace email' => ['203.0.113.9', '   '],
+            'no local part'    => ['203.0.113.9', '@example.com'],
+            'no @ at all'      => ['203.0.113.9', 'not-an-email'],
+            'no ip'            => ['', 'spammer@example.com'],
+            'whitespace ip'    => ['  ', 'spammer@example.com'],
+        ];
+    }
+
+    #[DataProvider('unreportableRows')]
+    public function test_an_unreportable_row_is_neither_sent_nor_scheduled(string $ip, string $email): void
+    {
+        $this->reporter()->do_report($ip, $email, 7);
+        $this->reporter()->maybe_schedule_report($ip, $email, 7);
 
         $this->assertSame([], $GLOBALS['bfas_test_http_requests']);
+        $this->assertSame([], $GLOBALS['bfas_test_scheduled']);
+        $this->assertSame([], $GLOBALS['bfas_test_transients']);
+    }
+
+    public function test_the_email_is_trimmed_before_it_is_sent(): void
+    {
+        $this->respond(['response' => ['code' => 200], 'body' => '']);
+
+        $this->reporter()->do_report('203.0.113.9', "  spammer@example.com\n", 7);
+
+        $body = $GLOBALS['bfas_test_http_requests'][0]['args']['body'];
+        $this->assertSame('spammer', $body['username']);
+        $this->assertSame('spammer@example.com', $body['email']);
+    }
+
+    public function test_a_long_refusal_reason_is_cut_to_200_characters(): void
+    {
+        $this->respond(['response' => ['code' => 403], 'body' => '<p>' . str_repeat('x', 500) . '</p>']);
+
+        $this->reporter()->do_report('203.0.113.9', 'spammer@example.com', 7);
+
+        $this->assertSame(str_repeat('x', 200), $GLOBALS['bfas_test_actions'][0][1][1]);
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function test_with_wp_debug_log_on_a_refusal_is_written_to_the_debug_log(): void
+    {
+        define('WP_DEBUG_LOG', true);
+        $log = tempnam(sys_get_temp_dir(), 'bfas');
+        ini_set('error_log', (string) $log);
+        $this->respond(['response' => ['code' => 403], 'body' => self::SFS_403]);
+
+        $this->reporter()->do_report('203.0.113.9', 'spammer@example.com', 7);
+
+        $written = (string) file_get_contents((string) $log);
+        unlink((string) $log);
+        $this->assertStringContainsString(
+            'Stop Forum Spam refused report for log row 7 (HTTP 403): Error: username field is required',
+            $written
+        );
     }
 
     // ------------------------------------------------------------------ //

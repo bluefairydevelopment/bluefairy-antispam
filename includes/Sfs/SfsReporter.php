@@ -70,7 +70,7 @@ class SfsReporter {
 			return;
 		}
 
-		if ( $this->settings->get_sfs_api_key() === '' ) {
+		if ( $this->settings->get_sfs_api_key() === '' || ! self::reportable( $ip, $email ) ) {
 			return;
 		}
 
@@ -94,16 +94,18 @@ class SfsReporter {
 	 * all of username, email and IP, so a row without them is not sent. The
 	 * username is the e-mail's local part, the one name every blocked form has.
 	 * A 200 is success; anything else fires `bfas_sfs_report_refused` with the
-	 * status (0 for a transport error) and SFS's reason, and the row stays unmarked.
+	 * status (0 for a transport error), SFS's reason (untrusted text, at most 200
+	 * characters) and the row ID, is written to the debug log when WP_DEBUG_LOG
+	 * is on, and the row stays unmarked.
 	 *
 	 * @param string $ip     Visitor IP address.
 	 * @param string $email  Raw email address.
 	 * @param int    $log_id DB row ID to mark as reported on success.
 	 */
 	public function do_report( string $ip, string $email, int $log_id ): void {
-		$api_key  = $this->settings->get_sfs_api_key();
-		$username = (string) strstr( $email, '@', true );
-		if ( '' === $api_key || '' === $ip || '' === $username ) {
+		$api_key = $this->settings->get_sfs_api_key();
+		$email   = trim( $email );
+		if ( '' === $api_key || ! self::reportable( $ip, $email ) ) {
 			return;
 		}
 
@@ -112,7 +114,7 @@ class SfsReporter {
 			[
 				'timeout' => 10,
 				'body'    => [
-					'username' => $username,
+					'username' => self::username( $email ),
 					'ip_addr'  => $ip,
 					'email'    => $email,
 					'evidence' => 'Blocked by BlueFairy Anti-Spam',
@@ -122,7 +124,7 @@ class SfsReporter {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			do_action( 'bfas_sfs_report_refused', 0, $response->get_error_message(), $log_id );
+			self::refused( 0, mb_substr( $response->get_error_message(), 0, 200 ), $log_id );
 			return;
 		}
 
@@ -132,19 +134,60 @@ class SfsReporter {
 			return;
 		}
 
-		do_action( 'bfas_sfs_report_refused', $code, self::refusal_reason( wp_remote_retrieve_body( $response ) ), $log_id );
+		self::refused( $code, self::refusal_reason( wp_remote_retrieve_body( $response ) ), $log_id );
+	}
+
+	/**
+	 * Whether a row carries everything SFS requires: an IP and an e-mail with a local part.
+	 *
+	 * @param string $ip    Visitor IP address.
+	 * @param string $email Raw email address.
+	 * @return bool
+	 */
+	private static function reportable( string $ip, string $email ): bool {
+		return '' !== trim( $ip ) && '' !== self::username( trim( $email ) );
+	}
+
+	/**
+	 * The username sent to SFS: the e-mail's local part ('' when there is none).
+	 *
+	 * @param string $email Email address.
+	 * @return string
+	 */
+	private static function username( string $email ): string {
+		return (string) strstr( $email, '@', true );
+	}
+
+	/**
+	 * Announce a refused report, and write it to the debug log when WP_DEBUG_LOG is on.
+	 *
+	 * The reason is untrusted text from a remote server: escape it before output.
+	 *
+	 * @param int    $code   HTTP status, 0 for a transport error.
+	 * @param string $reason Reason given, at most 200 characters.
+	 * @param int    $log_id Log row ID.
+	 * @return void
+	 */
+	private static function refused( int $code, string $reason, int $log_id ): void {
+		do_action( 'bfas_sfs_report_refused', $code, $reason, $log_id );
+
+		if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- opt-in debug log only.
+			error_log( sprintf( 'BlueFairy Anti-Spam: Stop Forum Spam refused report for log row %d (HTTP %d): %s', $log_id, $code, $reason ) );
+		}
 	}
 
 	/**
 	 * SFS gives its reason for a refusal inside a paragraph tag; fall back to the body.
 	 *
 	 * @param string $body Response body.
+	 * @return string Plain text, at most 200 characters.
 	 */
 	private static function refusal_reason( string $body ): string {
-		if ( preg_match( '#<p[^>]*>(.*?)</p>#is', $body, $m ) ) {
-			$body = $m[1];
+		if ( preg_match( '#<p[^>]*>(.*?)</p>#is', $body, $paragraph ) ) {
+			$body = $paragraph[1];
 		}
 
-		return trim( wp_strip_all_tags( $body ) );
+		return mb_substr( trim( wp_strip_all_tags( $body ) ), 0, 200 );
 	}
 }
