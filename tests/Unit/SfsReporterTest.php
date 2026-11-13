@@ -253,6 +253,43 @@ final class SfsReporterTest extends TestCase
         );
     }
 
+    /** @return array<string, array{array<string, mixed>|null}> */
+    public static function failedResponses(): array
+    {
+        return [
+            'refused (403)'   => [['response' => ['code' => 403], 'body' => self::SFS_403]],
+            'server error'    => [['response' => ['code' => 503], 'body' => '']],
+            'transport error' => [null],
+        ];
+    }
+
+    /** @param array<string, mixed>|null $response */
+    #[DataProvider('failedResponses')]
+    public function test_a_failed_report_can_be_scheduled_again(?array $response): void
+    {
+        if (null !== $response) {
+            $this->respond($response);
+        }
+        $reporter = $this->reporter();
+        $reporter->maybe_schedule_report('203.0.113.9', 'spammer@example.com', 7);
+        $reporter->do_report('203.0.113.9', 'spammer@example.com', 7);
+        $reporter->maybe_schedule_report('203.0.113.9', 'spammer@example.com', 8);
+
+        $this->assertSame([7, 8], array_map(static fn (array $e): int => $e['args'][2], $GLOBALS['bfas_test_scheduled']));
+    }
+
+    public function test_an_accepted_report_is_not_scheduled_again_within_the_day(): void
+    {
+        $this->respond(['response' => ['code' => 200], 'body' => '']);
+        $reporter = $this->reporter();
+        $reporter->maybe_schedule_report('203.0.113.9', ' Spammer@example.com', 7);
+        $reporter->do_report('203.0.113.9', ' Spammer@example.com', 7);
+        $reporter->maybe_schedule_report('203.0.113.9', 'spammer@example.com', 8);
+
+        $this->assertCount(1, $GLOBALS['bfas_test_scheduled']);
+        $this->assertSame([1], array_values($GLOBALS['bfas_test_transients']));
+    }
+
     public function test_nothing_is_scheduled_when_reporting_is_off(): void
     {
         $this->enabled = false;

@@ -103,7 +103,7 @@ No data is ever sent without your explicit opt-in.
 == Changelog ==
 
 = 1.2.3 =
-* Fixed: reports to Stop Forum Spam were refused, because they sent the IP address in the wrong field and no username, so no block was ever marked "Reported to SFS". Reports now send the fields Stop Forum Spam requires (username, IP address and email). A submission without an email address is not reported. When a report is refused, the reason is written to the debug log (if WP_DEBUG_LOG is on) and passed to the new `bfas_sfs_report_refused` action.
+* Fixed: reports to Stop Forum Spam were refused, because they sent the IP address in the wrong field and no username, so no block was ever marked "Reported to SFS". Reports now send the fields Stop Forum Spam requires (username, IP address and email). A refused or failed report is tried again the next time that visitor is blocked. A submission without an email address is not reported. When a report is refused, the reason is written to the debug log (if WP_DEBUG_LOG is on) and passed to the new `bfas_sfs_report_refused` action.
 
 = 1.2.2 =
 * Security: each form token is single-use. A bot could load one page and post with its token for 24 hours; a second comment or review with the same token is now held for moderation and logged as "replay" (never refused). On registration and checkout a replay is logged.

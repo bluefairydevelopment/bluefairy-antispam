@@ -368,3 +368,12 @@ if (! function_exists('wp_strip_all_tags')) {
         return trim(strip_tags($text));
     }
 }
+
+if (! function_exists('delete_transient')) {
+    function delete_transient(string $transient): bool
+    {
+        $existed = array_key_exists($transient, $GLOBALS['bfas_test_transients'] ?? []);
+        unset($GLOBALS['bfas_test_transients'][$transient]);
+        return $existed;
+    }
+}

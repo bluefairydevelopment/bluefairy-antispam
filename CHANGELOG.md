@@ -11,6 +11,7 @@ Versioning: Major.Minor.Patch (major = architecture shift, minor = new feature, 
 
 ### Fixed
 - **Stop Forum Spam reports were refused (WPMAP-349).** `SfsReporter::do_report()` posted `ip` (not `ip_addr`) and no `username` to `/add.php`; Stop Forum Spam requires username, IP address and email and answers 403 when one is missing, so no report was accepted and no log row was ever marked reported. Reports now POST `username`, `ip_addr`, `email`, `evidence` and `api_key` to `https://www.stopforumspam.com/add`, as its usage page documents. The username is the part of the email before the @. A row without an email address or IP address is neither scheduled nor sent.
+- A refused or failed report no longer blocks reporting that visitor for 24 hours. The 24-hour limit now applies only after Stop Forum Spam accepts a report, so the visitor's next block reports again.
 
 ### Added
 - `bfas_sfs_report_refused` action, fired with the HTTP status (0 for a transport error), Stop Forum Spam's reason (untrusted plain text, at most 200 characters) and the log row ID when a report is not accepted. With `WP_DEBUG_LOG` on, the refusal is also written to the debug log.

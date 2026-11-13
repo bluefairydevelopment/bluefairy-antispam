@@ -16,7 +16,8 @@ use BlueFairy\AntiSpam\Settings;
  * Asynchronously reports confirmed spammers to Stop Forum Spam.
  *
  * Reporting is deduped via a 24-hour transient so the same IP+email is
- * never reported twice within a day. Reports are scheduled via WP-Cron
+ * never reported twice within a day; a failed report releases it so the
+ * next block can try again. Reports are scheduled via WP-Cron
  * to avoid adding latency to the blocking response.
  */
 class SfsReporter {
@@ -74,14 +75,15 @@ class SfsReporter {
 			return;
 		}
 
-		$email_hash = hash_hmac( 'sha256', strtolower( trim( $email ) ), $this->settings->get_hmac_secret() );
-		$dedup_key  = 'bfas_sfs_rep_' . substr( md5( $ip . $email_hash ), 0, 12 );
+		$dedup_key = $this->dedup_key( $ip, $email );
 
 		if ( get_transient( $dedup_key ) ) {
-			return; // Already reported recently.
+			return; // Reported, or a report queued, within the last 24 hours.
 		}
 
-		set_transient( $dedup_key, 1, 86400 ); // 24-hour dedup window
+		// Held while the report is queued; released if it fails (do_report()),
+		// so only an accepted report blocks another for 24 hours.
+		set_transient( $dedup_key, 1, 86400 );
 
 		wp_schedule_single_event( time(), 'bfas_sfs_report_event', [ $ip, $email, $log_id ] );
 	}
@@ -96,7 +98,8 @@ class SfsReporter {
 	 * A 200 is success; anything else fires `bfas_sfs_report_refused` with the
 	 * status (0 for a transport error), SFS's reason (untrusted text, at most 200
 	 * characters) and the row ID, is written to the debug log when WP_DEBUG_LOG
-	 * is on, and the row stays unmarked.
+	 * is on, the row stays unmarked, and the 24-hour dedup is released so the
+	 * next block of the same visitor can report again.
 	 *
 	 * @param string $ip     Visitor IP address.
 	 * @param string $email  Raw email address.
@@ -124,6 +127,7 @@ class SfsReporter {
 		);
 
 		if ( is_wp_error( $response ) ) {
+			delete_transient( $this->dedup_key( $ip, $email ) );
 			self::refused( 0, $response->get_error_message(), $log_id );
 			return;
 		}
@@ -134,7 +138,21 @@ class SfsReporter {
 			return;
 		}
 
+		delete_transient( $this->dedup_key( $ip, $email ) );
 		self::refused( $code, self::refusal_reason( wp_remote_retrieve_body( $response ) ), $log_id );
+	}
+
+	/**
+	 * The transient that keeps one IP + e-mail pair from being reported twice a day.
+	 *
+	 * @param string $ip    Visitor IP address.
+	 * @param string $email Email address.
+	 * @return string
+	 */
+	private function dedup_key( string $ip, string $email ): string {
+		$email_hash = hash_hmac( 'sha256', strtolower( trim( $email ) ), $this->settings->get_hmac_secret() );
+
+		return 'bfas_sfs_rep_' . substr( md5( $ip . $email_hash ), 0, 12 );
 	}
 
 	/**
