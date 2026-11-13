@@ -7,7 +7,7 @@ Versioning: Major.Minor.Patch (major = architecture shift, minor = new feature, 
 
 ---
 
-## [1.2.3] — Unreleased
+## [1.2.3] — 2026-11-12
 
 ### Fixed
 - **Stop Forum Spam reports were refused (WPMAP-349).** `SfsReporter::do_report()` posted `ip` (not `ip_addr`) and no `username` to `/add.php`; Stop Forum Spam requires username, IP address and email and answers 403 when one is missing, so no report was accepted and no log row was ever marked reported. Reports now POST `username`, `ip_addr`, `email`, `evidence` and `api_key` to `https://www.stopforumspam.com/add`, as its usage page documents. The username is the part of the email before the @. A row without an email address or IP address is neither scheduled nor sent.
