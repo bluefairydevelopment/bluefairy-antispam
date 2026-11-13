@@ -201,6 +201,15 @@ final class SfsReporterTest extends TestCase
         $this->assertSame(str_repeat('x', 200), $GLOBALS['bfas_test_actions'][0][1][1]);
     }
 
+    public function test_a_refusal_reason_is_kept_to_one_line(): void
+    {
+        $this->respond(['response' => ['code' => 403], 'body' => "<p>bad key\nFAKE: forged line\r\n\tend</p>"]);
+
+        $this->reporter()->do_report('203.0.113.9', 'spammer@example.com', 7);
+
+        $this->assertSame('bad key FAKE: forged line end', $GLOBALS['bfas_test_actions'][0][1][1]);
+    }
+
     #[RunInSeparateProcess]
     #[PreserveGlobalState(false)]
     public function test_with_wp_debug_log_on_a_refusal_is_written_to_the_debug_log(): void

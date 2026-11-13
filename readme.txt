@@ -77,7 +77,7 @@ Yes. With Auto-detect Cloudflare on (the default), the plugin uses the visitor a
 
 = When I mark a comment as spam in the admin, does the plugin report it? =
 
-Yes — if Stop Forum Spam is enabled and an API key is configured, marking a comment as spam from the Comments list or post edit screen will automatically report the commenter's IP and email to SFS, with the part of the email before the @ as the username. A submission without an email address is not reported, because SFS requires one.
+Yes — if Stop Forum Spam is enabled and an API key is configured, marking a comment as spam from the Comments list or post edit screen will automatically report the commenter's IP and email to SFS, with the part of the email before the @ as the username. A submission without an email address or IP address is not reported, because SFS requires both.
 
 == Third Party Services ==
 

@@ -124,7 +124,7 @@ class SfsReporter {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			self::refused( 0, mb_substr( $response->get_error_message(), 0, 200 ), $log_id );
+			self::refused( 0, $response->get_error_message(), $log_id );
 			return;
 		}
 
@@ -169,6 +169,8 @@ class SfsReporter {
 	 * @return void
 	 */
 	private static function refused( int $code, string $reason, int $log_id ): void {
+		// One line: remote text must not be able to forge debug-log lines.
+		$reason = mb_substr( trim( (string) preg_replace( '/\s+/', ' ', $reason ) ), 0, 200 );
 		do_action( 'bfas_sfs_report_refused', $code, $reason, $log_id );
 
 		if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
@@ -181,13 +183,13 @@ class SfsReporter {
 	 * SFS gives its reason for a refusal inside a paragraph tag; fall back to the body.
 	 *
 	 * @param string $body Response body.
-	 * @return string Plain text, at most 200 characters.
+	 * @return string Plain text.
 	 */
 	private static function refusal_reason( string $body ): string {
 		if ( preg_match( '#<p[^>]*>(.*?)</p>#is', $body, $paragraph ) ) {
 			$body = $paragraph[1];
 		}
 
-		return mb_substr( trim( wp_strip_all_tags( $body ) ), 0, 200 );
+		return wp_strip_all_tags( $body );
 	}
 }
